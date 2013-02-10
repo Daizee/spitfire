@@ -11,3 +11,18 @@
 *.lai
 *.la
 *.a
+/includes
+/platform/mscv2012/Spitfire.sdf
+/platform/mscv2012/Spitfire.v11.suo
+/platform/mscv2012/Debug
+/platform/mscv2012/Release
+/platform/mscv2012/Spitfire.opensdf
+/bin/Spitfire.exe
+/bin/Spitfire.exe.manifest
+/bin/Spitfire.pdb
+/bin/Spitfire_d.bsc
+/bin/Spitfire_d.exe
+/bin/Spitfire_d.ilk
+/bin/Spitfire_d.pdb
+/dependencies.7z
+/mysql dump.7z
