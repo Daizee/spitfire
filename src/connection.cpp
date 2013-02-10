@@ -71,11 +71,12 @@ void connection::stop()
 			server * s = client_->m_main;
 			delete s->m_clients[num];
 			s->m_clients[num] = 0;
+			return;
 		}
 		client_->socket = 0;
 		client_->m_socknum = 0;
-		client_ = 0;
 		client_->m_lastlogin = unixtime();
+		client_ = 0;
 		//TODO: record last online time
 	}
 }

@@ -1827,8 +1827,10 @@ void request_handler::handle_request(const request& req, reply& rep)
 			}
 			else
 			{
-				data2["ok"] = -99;// TODO figure out non alliance error message -- alliance.isHasAlliance
+				data2["ok"] = -99;
 				data2["packageId"] = 0.0f;
+				data2["serialVersionUID"] = 0.0f;
+				data2["errorMsg"] = "You are not in any alliance.";
 			}
 
 			gserver->SendObject(c, obj2);
@@ -1840,14 +1842,10 @@ void request_handler::handle_request(const request& req, reply& rep)
 			data2["ok"] = 1;
 			data2["packageId"] = 0.0f;
 
-
-			data2["ok"] = 1;
-			data2["packageId"] = 0.0f;
-
 			LOCK(M_ALLIANCELIST);
 			data2["allianceAddPlayerByLeaderInfoBeanList"] = amf3array();
 
-			// TODO: this is your list of alliances that have invited you?-- alliance.leaderWantUserInAllianceList
+			//TODO: this is your list of alliances that have invited you?-- alliance.leaderWantUserInAllianceList
 
 			amf3array & allianceinfo = *(amf3array*)data2["allianceAddPlayerByLeaderInfoBeanList"];
 
@@ -1880,11 +1878,60 @@ void request_handler::handle_request(const request& req, reply& rep)
 			gserver->SendObject(c, obj2);
 			return;
 		}
+		if ((command == "rejectComeinAlliance"))
+		{
+			obj2["cmd"] = "alliance.rejectComeinAlliance";
+			data2["packageId"] = 0.0f;
+
+			string alliancename = data["allianceName"];
+
+			Alliance * alliance = gserver->m_alliances->AllianceByName(alliancename);
+			if (alliance == (Alliance*)-1)
+			{
+				data2["ok"] = -99;
+				data2["errorMsg"] = "Alliance no longer exists.";
+
+				gserver->SendObject(c, obj2);
+				return;
+			}
+
+			LOCK(M_ALLIANCELIST);
+			if (alliance->m_invites.size())
+			{
+				vector<Alliance::stInviteList>::iterator iter;
+				for ( iter = alliance->m_invites.begin() ; iter != alliance->m_invites.end(); ++iter )
+				{
+					if (iter->client->m_accountid == client->m_accountid)
+					{
+						alliance->m_invites.erase(iter);
+						data2["ok"] = 1;
+
+						gserver->SendObject(c, obj2);
+						return;
+					}
+				}
+			}
+			else
+			{
+				data2["ok"] = -99;
+				data2["errorMsg"] = "Invite no longer exists.";
+
+				gserver->SendObject(c, obj2);
+				return;
+			}
+			UNLOCK(M_ALLIANCELIST);
+			data2["ok"] = -99;
+			data2["errorMsg"] = "An unknown error occurred.";
+
+			gserver->SendObject(c, obj2);
+			return;
+		}
 		if ((command == "agreeComeinAllianceList"))
 		{
 			obj2["cmd"] = "alliance.agreeComeinAllianceList";
 			data2["packageId"] = 0.0f;
 
+			//TODO copy this permission check
 			if ((client->m_allianceid == 0) || (client->m_alliancerank > DEF_ALLIANCEPRES))
 			{
 				data2["ok"] = -99;
@@ -2021,7 +2068,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 					temp["createrTime"] = 0;
 					temp["alliance"] = alliance->m_name;
 					temp["office"] = client->m_office;
-					temp["allianceLevel"] = gserver->m_alliances->GetAllianceRank(client->m_alliancerank);
+					temp["allianceLevel"] = AllianceCore::GetAllianceRank(client->m_alliancerank);
 					temp["sex"] = client->m_sex;
 					temp["levelId"] = client->m_alliancerank;
 					temp["honor"] = client->m_honor;
@@ -2176,7 +2223,6 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "getMilitarySituationList"))
 		{
-			// TODO War reports -- alliance.getMilitarySituationList
 			int pagesize = data["pageSize"];
 			int pageno = data["pageNo"];
 
@@ -2189,7 +2235,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "addUsertoAllianceList"))
 		{
-			// TODO War reports -- alliance.getMilitarySituationList
+			//TODO permission check
 			obj2["cmd"] = "alliance.addUsertoAllianceList";
 			data2["packageId"] = 0.0f;
 
@@ -2232,7 +2278,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "addUsertoAlliance"))
 		{
-			// TODO War reports -- alliance.getMilitarySituationList
+			//TODO permission check
 			obj2["cmd"] = "alliance.addUsertoAlliance";
 			data2["packageId"] = 0.0f;
 
@@ -2244,6 +2290,14 @@ void request_handler::handle_request(const request& req, reply& rep)
 				gserver->SendObject(c, obj2);
 				return;
 			}
+
+			//TODO copy 24h alliance join cooldown?
+			/*
+			["data"] Type: Object - Value: Object
+				["packageId"] Type: Number - Value: 0.000000
+				["ok"] Type: Integer - Value: -301
+				["errorMsg"] Type: String - Value: Can not join the same Alliance again in 23 hours.
+			 */
 
 			MULTILOCK(M_ALLIANCELIST, M_CLIENTLIST);
 			string username = data["userName"];
@@ -2294,7 +2348,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "canceladdUsertoAlliance"))
 		{
-			// TODO War reports -- alliance.getMilitarySituationList
+			//TODO permission check
 			obj2["cmd"] = "alliance.canceladdUsertoAlliance";
 			data2["packageId"] = 0.0f;
 
@@ -2324,7 +2378,6 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "cancelagreeComeinAlliance"))
 		{
-			// TODO War reports -- alliance.getMilitarySituationList
 			obj2["cmd"] = "alliance.cancelagreeComeinAlliance";
 			data2["packageId"] = 0.0f;
 
@@ -2354,6 +2407,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "setAllianceFriendship"))
 		{
+			//TODO permission check
 			obj2["cmd"] = "alliance.setAllianceFriendship";
 			data2["packageId"] = 0.0f;
 
@@ -2620,6 +2674,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "setAllInfoForAlliance"))
 		{
+			//TODO permission check
 			string notetext = data["noteText"];
 			string infotext = data["infoText"];
 			string alliancename = data["allianceName"];
@@ -2656,9 +2711,88 @@ void request_handler::handle_request(const request& req, reply& rep)
 			gserver->SendObject(c, obj2);
 			return;
 		}
+		if (command == "getPowerFromAlliance")
+		{
+			obj2["cmd"] = "alliance.getPowerFromAlliance";
+			data2["packageId"] = 0.0f;
+
+			if (!client->HasAlliance())
+			{
+				data2["ok"] = -99;
+				data2["errorMsg"] = "Not a member of an alliance.";
+
+				gserver->SendObject(c, obj2);
+				return;
+			}
+			data2["ok"] = 1;
+			data2["level"] = client->m_alliancerank;
+
+			gserver->SendObject(c, obj2);
+			return;
+		}
+		if (command == "resetTopPowerForAlliance")
+		{
+			obj2["cmd"] = "alliance.resetTopPowerForAlliance";
+			data2["packageId"] = 0.0f;
+
+			if (!client->HasAlliance())
+			{
+				data2["ok"] = -99;
+				data2["errorMsg"] = "Not a member of an alliance.";
+
+				gserver->SendObject(c, obj2);
+				return;
+			}
+
+			if (client->m_alliancerank != DEF_ALLIANCEHOST)
+			{
+				//you're not the host.. what are you doing?
+				data2["ok"] = -42;
+				data2["errorMsg"] = "You are not entitled to operate.";
+
+				gserver->SendObject(c, obj2);
+				return;
+			}
+
+			string passtoname = data["userName"];
+
+			Alliance * alliance = client->GetAlliance();
+			if (alliance->HasMember(passtoname))
+			{
+				//member found
+				Client * tclient = gserver->GetClientByName(passtoname);
+				if (tclient->m_alliancerank != DEF_ALLIANCEVICEHOST)
+				{
+					data2["ok"] = -88;
+					data2["errorMsg"] = "The Host title of the Alliance can only be transferred to Vice Host. You need to promote this player first.";
+
+					gserver->SendObject(c, obj2);
+					return;
+				}
+				//everything checks out. target is vice host and you are host
+				tclient->m_alliancerank = DEF_ALLIANCEHOST;
+				client->m_alliancerank = DEF_ALLIANCEVICEHOST;
+				client->PlayerUpdate();
+				tclient->PlayerUpdate();
+				alliance->m_owner = tclient->m_playername;
+
+				data2["ok"] = 1;
+
+				gserver->SendObject(c, obj2);
+				return;
+			}
+			else
+			{
+				data2["ok"] = -41;
+				data2["errorMsg"] = "Player " + passtoname + " doesn't exist.";
+
+				gserver->SendObject(c, obj2);
+				return;
+			}
+		}
 		if ((command == "agreeComeinAllianceByLeader"))
 		{
-			// TODO War reports -- alliance.getMilitarySituationList
+			//TODO permission check?
 			obj2["cmd"] = "alliance.agreeComeinAllianceByLeader";
 			data2["packageId"] = 0.0f;
 
@@ -2717,7 +2851,6 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "setPowerForUserByAlliance"))
 		{
-			// TODO War reports -- alliance.getMilitarySituationList
 			obj2["cmd"] = "alliance.setPowerForUserByAlliance";
 			data2["packageId"] = 0.0f;
 			data2["ok"] = 1;
@@ -2725,10 +2858,19 @@ void request_handler::handle_request(const request& req, reply& rep)
 			int8_t type = data["typeId"];
 			string username = data["userName"];
 
+			if (!client->HasAlliance())
+			{
+				data2["ok"] = -99;
+				data2["errorMsg"] = "Not a member of an alliance.";
+
+				gserver->SendObject(c, obj2);
+				return;
+			}
+
 			MULTILOCK(M_ALLIANCELIST, M_CLIENTLIST);
 			Client * tar = gserver->GetClientByName(username);
 
-			if (!tar)
+			if (!tar || !client->GetAlliance()->HasMember(username))
 			{
 				data2["ok"] = -99;
 				data2["errorMsg"] = "Member does not exist.";
@@ -2738,26 +2880,40 @@ void request_handler::handle_request(const request& req, reply& rep)
 				UNLOCK(M_CLIENTLIST);
 				return;
 			}
+			//TODO: Set limits to rank counts?
 			gserver->m_alliances->SetRank(client->m_allianceid, tar, type);
 
 			UNLOCK(M_ALLIANCELIST);
 			UNLOCK(M_CLIENTLIST);
 
 			gserver->SendObject(c, obj2);
+
+			//send alliance message
+			string msg = client->m_playername + " promotes " + tar->m_playername + " to " + AllianceCore::GetAllianceRank(type) + ".";
+			client->GetAlliance()->SendAllianceMessage(msg, false, false);
 			return;
 		}
 		if ((command == "kickOutMemberfromAlliance"))
 		{
-			// TODO War reports -- alliance.getMilitarySituationList
+			//TODO permission check
 			obj2["cmd"] = "alliance.kickOutMemberfromAlliance";
 			data2["packageId"] = 0.0f;
+
+			if (!client->HasAlliance())
+			{
+				data2["ok"] = -99;
+				data2["errorMsg"] = "Not a member of an alliance.";
+
+				gserver->SendObject(c, obj2);
+				return;
+			}
 
 			string username = data["userName"];
 
 			MULTILOCK(M_ALLIANCELIST, M_CLIENTLIST);
 			Client * tar = gserver->GetClientByName(username);
 
-			if (!tar)
+			if (!tar || !client->GetAlliance()->HasMember(username))
 			{
 				data2["ok"] = -99;
 				data2["errorMsg"] = "Member does not exist.";
@@ -3395,7 +3551,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 				if (iter->client->m_allianceid > 0)
 				{
 					temp["alliance"] = iter->client->GetAlliance()->m_name;
-					temp["allianceLevel"] = gserver->m_alliances->GetAllianceRank(iter->client->m_alliancerank);
+					temp["allianceLevel"] = AllianceCore::GetAllianceRank(iter->client->m_alliancerank);
 					temp["levelId"] = iter->client->m_alliancerank;
 				}
 				temp["office"] = iter->client->m_office;

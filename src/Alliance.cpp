@@ -175,6 +175,7 @@ void Alliance::SendAllianceMessage(string msg, bool tv, bool nosender)
 
 	obj["cmd"] = "server.SystemInfoMsg";
 	data["alliance"] = true;
+	data["sender"] = "Alliance Msg";
 	data["tV"] = tv;
 	data["msg"] = msg;
 	data["noSenderSystemInfo"] = nosender;
@@ -416,6 +417,27 @@ bool Alliance::AddMember(uint32_t clientid, uint8_t rank)
 	m_members.push_back(member);
 	m_currentmembers++;
 	return true;
+}
+
+bool Alliance::HasMember(string username)
+{
+	Client * client = m_main->GetClientByName(username);
+	if (!client)
+		return false;
+	HasMember(client->m_accountid);
+}
+
+bool Alliance::HasMember(uint32_t clientid)
+{
+	vector<Alliance::stMember>::iterator iter;
+	for ( iter = m_members.begin() ; iter != m_members.end(); ++iter)
+	{
+		if (iter->clientid == clientid)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 bool Alliance::RemoveMember(uint32_t clientid)

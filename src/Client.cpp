@@ -382,7 +382,7 @@ amf3object Client::PlayerInfo()
 	if (m_allianceid > 0)
 	{
 		obj["alliance"] = m_main->m_alliances->AllianceById(m_allianceid)->m_name;
-		obj["allianceLevel"] = m_main->m_alliances->GetAllianceRank(m_alliancerank);
+		obj["allianceLevel"] = AllianceCore::GetAllianceRank(m_alliancerank);
 		obj["levelId"] = m_alliancerank;
 	}
 	obj["createrTime"] = m_creation;//-3*7*24*60*60*1000;

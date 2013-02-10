@@ -114,7 +114,7 @@ public:
 			return false;
 		return true;
 	}
-	string GetAllianceRank(int16_t rank)
+	static string GetAllianceRank(int16_t rank)
 	{
 		if (rank == DEF_ALLIANCEHOST)
 		{
@@ -191,6 +191,8 @@ public:
 
 	amf3object ToObject();
 
+	bool HasMember(string username);
+	bool HasMember(uint32_t clientid);
 	bool IsEnemy(int32_t allianceid);
 	bool IsAlly(int32_t allianceid);
 	bool IsNeutral(int32_t allianceid);
