@@ -63,7 +63,7 @@ void AllianceCore::DeleteAlliance(Alliance * alliance)
 					m_alliances[i]->UnEnemy(alliance->m_allianceid);
 
 
-				for (int x = 0; x < DEF_MAXCLIENTS; ++x)
+				for (int x = 0; x < m_main->maxplayersloaded; ++x)
 				{
 					if ((m_main->m_clients[x]) && (m_main->m_clients[x]->m_allianceapply == alliance->m_name))
 						m_main->m_clients[x]->m_allianceapply = "";
@@ -424,7 +424,7 @@ bool Alliance::HasMember(string username)
 	Client * client = m_main->GetClientByName(username);
 	if (!client)
 		return false;
-	HasMember(client->m_accountid);
+	return HasMember(client->m_accountid);
 }
 
 bool Alliance::HasMember(uint32_t clientid)

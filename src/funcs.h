@@ -159,7 +159,7 @@ namespace server {
 
 #define SOCKET_SERVER 2
 
-#define DEF_MAXCLIENTS 1024
+//#define DEF_MAXCLIENTS 1024
 #define DEF_MAXPHP 100
 #define DEF_MAXALLIANCES 1000
 #define DEF_MAXITEMS 400

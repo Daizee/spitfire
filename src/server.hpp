@@ -39,6 +39,9 @@
 #include "Client.h"
 #include "SQLDB.h"
 
+#include <lua/lua.hpp>
+#include <lua/lauxlib.h>
+
 namespace spitfire {
 namespace server {
 
@@ -49,10 +52,10 @@ class server
 public:
 	/// Construct the server to listen on the specified TCP address and port, and
 	/// serve up files from the given directory.
-	explicit server(const std::string& address, const std::string& mysqladdress,
-		const std::string& mysqluser, const std::string& mysqlpass);
+	explicit server();
+	~server() { delete m_clients; delete m_map; delete accounts; delete msql; delete msql2; }
 
-	string sqlhost, sqluser, sqlpass, bindaddress;
+	string sqlhost, sqluser, sqlpass, bindaddress, bindport;
 
 	/// Run the server's io_service loop.
 	void run();
@@ -93,7 +96,14 @@ public:
 	CSQLDB * msql;
 	CSQLDB * msql2;
 
+	//Lua
+	lua_State *L;
+
+	bool LoadConfig();
+
 	char serverstatus;
+
+	uint32_t maxplayersloaded, maxplayersonline, currentplayersonline;
 
 	string * m_servername;
 	Map * m_map;
@@ -107,7 +117,7 @@ public:
 	City * AddNpcCity(int tileid);
 	void MassMessage(string str, bool nosender = false, bool tv = false, bool all = false);
 
-	Client * m_clients[DEF_MAXCLIENTS]; // max connectable clients
+	Client ** m_clients; // max connectable clients
 
 	void SendObject(uint s, amf3object & object)
 	{

@@ -40,21 +40,13 @@ int main(int argc, char* argv[])
 {
 	try
 	{
-		// Check command line arguments.
-		if (argc != 5)
-		{
-			std::cerr << "Usage: Spitfire.exe <bindaddress> <mysqladdress> <mysqluser> <mysqlpass>\n";
-			return 1;
-		}
-
 		// Initialise the server.
 		//spitfire::server::server s(argv[1], argv[2], argv[3]);
-		spitfire::server::server s(argv[1], argv[2], argv[3], argv[4]);
+		spitfire::server::gserver = new spitfire::server::server;
 
-		spitfire::server::gserver = &s;
 
 		// Run the server until stopped.
-		s.run();
+		spitfire::server::gserver->run();
 
 		while (spitfire::server::TimerThreadRunning)
 		{
@@ -65,8 +57,8 @@ int main(int argc, char* argv[])
 	{
 		std::cerr << "exception: " << e.what() << "\n";
 	}
-
 	system("pause");
+	delete spitfire::server::gserver;
 
 	return 0;
 }

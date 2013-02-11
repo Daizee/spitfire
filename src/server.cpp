@@ -61,8 +61,7 @@ uint64_t unixtime()
 	return tstruct.millitm + tstruct.time*1000;
 }
 
-server::server(const std::string& address, const std::string& mysqladdress,
-			   const std::string& mysqluser, const std::string& mysqlpass)
+server::server()
   : io_service_(),
     signals_(io_service_),
     acceptor_(io_service_),
@@ -74,16 +73,8 @@ server::server(const std::string& address, const std::string& mysqladdress,
 	msql2(0),
 	m_map(0)
 {
-	sqlhost = mysqladdress;
-	sqluser = mysqluser;
-	sqlpass = mysqlpass;
-	bindaddress = address;
 	serverstatus = 0;//offline
 	m_servername = 0;
-	for (register int i = 0; i < DEF_MAXCLIENTS; ++i)
-	{
-		m_clients[i] = 0;
-	}
 	memset(&m_buildingconfig, 0, sizeof(m_buildingconfig));
 	memset(&m_researchconfig, 0, sizeof(m_researchconfig));
 	memset(&m_troopconfig, 0, sizeof(m_troopconfig));
@@ -94,39 +85,49 @@ server::server(const std::string& address, const std::string& mysqladdress,
 	m_itemcount = 0;
 
 
-  // Register to handle the signals that indicate when the server should exit.
-  // It is safe to register for the same signal multiple times in a program,
-  // provided all registration for the specified signal is made through Asio.
-  signals_.add(SIGINT);
-  signals_.add(SIGTERM);
-#if defined(SIGQUIT)
-  signals_.add(SIGQUIT);
-#endif // defined(SIGQUIT)
-  signals_.async_wait(boost::bind(&server::handle_stop, this));
+	L = lua_open();
+	luaL_openlibs(L);
 
-  // Open the acceptor with the option to reuse the address (i.e. SO_REUSEADDR).
-  asio::ip::tcp::resolver resolver(io_service_);
-  asio::ip::tcp::resolver::query query(bindaddress, "443");
-  asio::ip::tcp::endpoint endpoint = *resolver.resolve(query);
-  acceptor_.open(endpoint.protocol());
-  acceptor_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
-  bool test = true;
-  try { 
-	  acceptor_.bind(endpoint);
-  }
-  catch (std::exception& e)
-  {
-	  std::cerr << "port 443 already in use!\n";
-	  test = false;
-  }
-  if (test == false)
-  {
-	  throw exception("Exiting");
-  }
-  acceptor_.listen();
-  acceptor_.async_accept(new_connection_->socket(),
-      boost::bind(&server::handle_accept, this,
-        asio::placeholders::error));
+	if (!LoadConfig())
+	{
+		throw exception("Error in config. Exiting.");
+	}
+
+	m_clients = new Client*[maxplayersloaded];
+	for (int i = 0; i < maxplayersloaded; ++i)
+	{
+		m_clients[i] = 0;
+	}
+
+
+	// Register to handle the signals that indicate when the server should exit.
+	// It is safe to register for the same signal multiple times in a program,
+	// provided all registration for the specified signal is made through Asio.
+	signals_.add(SIGINT);
+	signals_.add(SIGTERM);
+	#if defined(SIGQUIT)
+	signals_.add(SIGQUIT);
+	#endif // defined(SIGQUIT)
+	signals_.async_wait(boost::bind(&server::handle_stop, this));
+
+	// Open the acceptor with the option to reuse the address (i.e. SO_REUSEADDR).
+	asio::ip::tcp::resolver resolver(io_service_);
+	asio::ip::tcp::resolver::query query(bindaddress, bindport);
+	asio::ip::tcp::endpoint endpoint = *resolver.resolve(query);
+	acceptor_.open(endpoint.protocol());
+	acceptor_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
+	bool test = true;
+	try { 
+		acceptor_.bind(endpoint);
+	}
+	catch (std::exception& e)
+	{
+		test = false;
+	}
+	if (test == false)
+	{
+		throw exception("Invalid bind address or port 443 already in use! Exiting.");
+	}
 }
 
 void server::run()
@@ -639,7 +640,7 @@ void server::run()
 	}
 	msql->Reset();
 
-	for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+	for (int i = 0; i < maxplayersloaded; ++i)
 	{
 		Client * client = m_clients[i];
 		if (client)
@@ -751,6 +752,12 @@ void server::run()
 	hTimerThread = (HANDLE)_beginthreadex(0, 0, TimerThread, 0, 0, &uAddr);
 #endif
 
+	// Finally listen on the socket and start accepting connections
+	acceptor_.listen();
+	acceptor_.async_accept(new_connection_->socket(),
+		boost::bind(&server::handle_accept, this,
+		asio::placeholders::error));
+
 	io_service_.run();
 
 #ifndef WIN32
@@ -763,6 +770,48 @@ void server::run()
 	HANDLE hSaveThread;
 	hSaveThread = (HANDLE)_beginthreadex(0, 0, SaveData, 0, 0, &uAddr);
 #endif
+	lua_close(L);
+}
+
+bool server::LoadConfig()
+{
+	if (luaL_dofile(L, "config.lua") != 0)
+	{
+		Log("%s", lua_tostring(L,-1));
+		return false;
+	}
+	lua_getglobal(L, "server");
+
+	lua_getfield(L, -1, "ipaddress");
+	bindaddress = lua_tostring(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "port");
+	bindport = lua_tostring(L, -1);
+	Log("Binding on %s:%s", bindaddress.c_str(), bindport.c_str());
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "mysqlhost");
+	sqlhost = lua_tostring(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "mysqluser");
+	sqluser = lua_tostring(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "mysqlpass");
+	sqlpass = lua_tostring(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "maxplayersloaded");
+	maxplayersloaded = atoi(lua_tostring(L, -1));
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "maxplayersonline");
+	maxplayersonline = atoi(lua_tostring(L, -1));
+	lua_pop(L, 1);
+
+	return true;
 }
 
 void server::stop()
@@ -846,7 +895,7 @@ void * TimerThread(void *ch)
 			if (t100msectimer < ltime)
 			{
 				MULTILOCK(M_TIMEDLIST, M_CLIENTLIST);
-				for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+				for (int i = 0; i < gserver->maxplayersloaded; ++i)
 				{
 					if (gserver->m_clients[i])
 					{
@@ -1074,7 +1123,7 @@ void * TimerThread(void *ch)
 				gserver->SortCastles();
 				gserver->m_alliances->SortAlliances();
 				UNLOCK(M_RANKEDLIST);
-				for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+				for (int i = 0; i < gserver->maxplayersloaded; ++i)
 				{
 					if (gserver->m_clients[i])
 					{
@@ -1102,7 +1151,7 @@ void * TimerThread(void *ch)
 			}
 			if (t1mintimer < ltime)
 			{
-				for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+				for (int i = 0; i < gserver->maxplayersloaded; ++i)
 				{
 					if (gserver->m_clients[i])
 					{
@@ -1492,7 +1541,7 @@ void * SaveData(void *ch)
 	try
 	{
 		LOCK(M_CLIENTLIST);
-		for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+		for (int i = 0; i < gserver->maxplayersloaded; ++i)
 		{
 			if (!gserver->m_clients[i])
 				continue;
@@ -1683,9 +1732,9 @@ void * SaveData(void *ch)
 				Log("SaveData() Exception.");
 				UNLOCK(M_CASTLELIST);
 			}
-			if ((i+1)%(DEF_MAXCLIENTS/10) == 0)
+			if ((i+1)%(gserver->maxplayersloaded/10) == 0)
 			{
-				Log("%d%%", int((double(double(i+1)/DEF_MAXCLIENTS))*double(100)));
+				Log("%d%%", int((double(double(i+1)/gserver->maxplayersloaded))*double(100)));
 			}
 		}
 		UNLOCK(M_CLIENTLIST);
@@ -1964,7 +2013,7 @@ void server::AddTimedEvent(stTimedEvent & te)
 }
 void server::MassDisconnect()
 {
-	for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+	for (int i = 0; i < maxplayersloaded; ++i)
 		if (m_clients[i]->socket)
 		{
 			amf3object obj;
@@ -1985,7 +2034,7 @@ void server::MassDisconnect()
 }
 void server::MassMessage(string str, bool nosender /* = false*/, bool tv /* = false*/, bool all /* = false*/)
 {
-	for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+	for (int i = 0; i < maxplayersloaded; ++i)
 		if (m_clients[i] && m_clients[i]->socket)
 		{
 			amf3object obj;
@@ -2118,7 +2167,7 @@ void server::SortPlayers()
 	m_populationrank.clear();
 	m_citiesrank.clear();
 
-	for (int i = 1; i < DEF_MAXCLIENTS; ++i)
+	for (int i = 1; i < maxplayersloaded; ++i)
 	{
 		if (m_clients[i])
 		{
@@ -2207,7 +2256,7 @@ void server::SortHeroes()
 	m_herorankmanagement.clear();
 	m_herorankgrade.clear();
 
-	for (uint32_t i = 1; i < DEF_MAXCLIENTS; ++i)
+	for (uint32_t i = 1; i < maxplayersloaded; ++i)
 	{
 		if (m_clients[i])
 		{
@@ -2286,7 +2335,7 @@ void server::SortCastles()
 	m_castleranklevel.clear();
 	m_castlerankpopulation.clear();
 
-	for (int i = 1; i < DEF_MAXCLIENTS; ++i)
+	for (int i = 1; i < maxplayersloaded; ++i)
 	{
 		if (m_clients[i])
 		{
@@ -2335,7 +2384,7 @@ void server::SortCastles()
 }
 int32_t  server::GetClientID(int32_t accountid)
 {
-	for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+	for (int i = 0; i < maxplayersloaded; ++i)
 	{
 		if (m_clients[i])
 			if (m_clients[i]->m_accountid == accountid)
@@ -2345,7 +2394,7 @@ int32_t  server::GetClientID(int32_t accountid)
 }
 Client * server::GetClient(int accountid)
 {
-	for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+	for (int i = 0; i < maxplayersloaded; ++i)
 	{
 		if (m_clients[i])
 			if (m_clients[i]->m_accountid == accountid)
@@ -2355,7 +2404,7 @@ Client * server::GetClient(int accountid)
 }
 Client * server::GetClientByParent(int accountid)
 {
-	for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+	for (int i = 0; i < maxplayersloaded; ++i)
 	{
 		if (m_clients[i])
 			if (m_clients[i]->m_parentid == accountid)
@@ -2365,7 +2414,7 @@ Client * server::GetClientByParent(int accountid)
 }
 Client * server::GetClientByName(string name)
 {
-	for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+	for (int i = 0; i < maxplayersloaded; ++i)
 	{
 		if (m_clients[i])
 			if (m_clients[i]->m_playername == name)
@@ -2437,7 +2486,7 @@ City * server::AddNpcCity(int tileid)
 }
 Client * server::NewClient()
 {
-	for (int i = 1; i < DEF_MAXCLIENTS; ++i)
+	for (int i = 1; i < maxplayersloaded; ++i)
 	{
 		if (m_clients[i] == 0)
 		{
@@ -2447,7 +2496,7 @@ Client * server::NewClient()
 			return m_clients[i];
 		}
 	}
-	Log("Client list full! %d players on server.", DEF_MAXCLIENTS);
+	Log("Client list full! %d players on server.", maxplayersloaded);
 	return 0;
 }
 bool server::ParseChat(Client * client, char * str)
@@ -2590,8 +2639,6 @@ void * server::DoRankSearch(string key, int8_t type, void * subtype, int16_t pag
 {
 	if (type == 1)//client lists
 	{
-		list<stClientRank> * ranklist;
-
 		list<stSearchClientRank>::iterator iter;
 		for ( iter = m_searchclientranklist.begin(); iter != m_searchclientranklist.end(); )
 		{
@@ -2623,8 +2670,6 @@ void * server::DoRankSearch(string key, int8_t type, void * subtype, int16_t pag
 	}
 	else if (type == 2)//hero lists
 	{
-		list<stHeroRank> * ranklist;
-
 		list<stSearchHeroRank>::iterator iter;
 		for ( iter = m_searchheroranklist.begin(); iter != m_searchheroranklist.end(); )
 		{
@@ -2661,8 +2706,6 @@ void * server::DoRankSearch(string key, int8_t type, void * subtype, int16_t pag
 	}
 	else if (type == 3)//castle lists
 	{
-		list<stCastleRank> * ranklist;
-
 		list<stSearchCastleRank>::iterator iter;
 		for ( iter = m_searchcastleranklist.begin(); iter != m_searchcastleranklist.end(); )
 		{
@@ -2699,8 +2742,6 @@ void * server::DoRankSearch(string key, int8_t type, void * subtype, int16_t pag
 	}
 	else if (type == 4)//alliance lists
 	{
-		list<stAlliance> * ranklist;
-
 		list<stSearchAllianceRank>::iterator iter;
 		for ( iter = m_searchallianceranklist.begin(); iter != m_searchallianceranklist.end(); )
 		{

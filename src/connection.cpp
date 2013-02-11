@@ -65,14 +65,15 @@ void connection::stop()
 	socket_.close();
 	if (client_)
 	{
+		server * s = client_->m_main;
 		if (!client_->m_accountexists)
 		{
 			int num = client_->m_clientnumber;
-			server * s = client_->m_main;
 			delete s->m_clients[num];
 			s->m_clients[num] = 0;
 			return;
 		}
+		s->currentplayersonline--;
 		client_->socket = 0;
 		client_->m_socknum = 0;
 		client_->m_lastlogin = unixtime();

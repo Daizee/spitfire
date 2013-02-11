@@ -164,7 +164,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 
 			LOCK(M_CLIENTLIST);
 			if (gserver->ParseChat(client, (char*)data["msg"]))
-				for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+				for (int i = 0; i < gserver->maxplayersloaded; ++i)
 				{
 					if (gserver->m_clients[i])
 						gserver->SendObject(gserver->m_clients[i]->socket, obj3);
@@ -230,7 +230,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 
 			LOCK(M_CLIENTLIST);
 			if (gserver->ParseChat(client, (char*)data["msg"]))
-				for (int i = 0; i < DEF_MAXCLIENTS; ++i)
+				for (int i = 0; i < gserver->maxplayersloaded; ++i)
 				{
 					if ((gserver->m_clients[i]) && (gserver->m_clients[i]->socket))
 						gserver->SendObject(gserver->m_clients[i]->socket, obj3);
@@ -1931,7 +1931,6 @@ void request_handler::handle_request(const request& req, reply& rep)
 			obj2["cmd"] = "alliance.agreeComeinAllianceList";
 			data2["packageId"] = 0.0f;
 
-			//TODO copy this permission check
 			if ((client->m_allianceid == 0) || (client->m_alliancerank > DEF_ALLIANCEPRES))
 			{
 				data2["ok"] = -99;
@@ -2235,7 +2234,6 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "addUsertoAllianceList"))
 		{
-			//TODO permission check
 			obj2["cmd"] = "alliance.addUsertoAllianceList";
 			data2["packageId"] = 0.0f;
 
@@ -2278,7 +2276,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "addUsertoAlliance"))
 		{
-			//TODO permission check
+			//invite player
 			obj2["cmd"] = "alliance.addUsertoAlliance";
 			data2["packageId"] = 0.0f;
 
@@ -2290,8 +2288,16 @@ void request_handler::handle_request(const request& req, reply& rep)
 				gserver->SendObject(c, obj2);
 				return;
 			}
+			if (client->m_alliancerank > DEF_ALLIANCEPRES)
+			{
+				data2["ok"] = -99;
+				data2["errorMsg"] = "Not enough rank.";
 
-			//TODO copy 24h alliance join cooldown?
+				gserver->SendObject(c, obj2);
+				return;
+			}
+
+			//TODO: copy 24h alliance join cooldown?
 			/*
 			["data"] Type: Object - Value: Object
 				["packageId"] Type: Number - Value: 0.000000
@@ -2348,7 +2354,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "canceladdUsertoAlliance"))
 		{
-			//TODO permission check
+			//TODO: permission check
 			obj2["cmd"] = "alliance.canceladdUsertoAlliance";
 			data2["packageId"] = 0.0f;
 
@@ -2407,7 +2413,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "setAllianceFriendship"))
 		{
-			//TODO permission check
+			//TODO: permission check
 			obj2["cmd"] = "alliance.setAllianceFriendship";
 			data2["packageId"] = 0.0f;
 
@@ -2674,7 +2680,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "setAllInfoForAlliance"))
 		{
-			//TODO permission check
+			//TODO: permission check
 			string notetext = data["noteText"];
 			string infotext = data["infoText"];
 			string alliancename = data["allianceName"];
@@ -2792,7 +2798,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "agreeComeinAllianceByLeader"))
 		{
-			//TODO permission check?
+			//TODO: permission check?
 			obj2["cmd"] = "alliance.agreeComeinAllianceByLeader";
 			data2["packageId"] = 0.0f;
 
@@ -2895,7 +2901,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "kickOutMemberfromAlliance"))
 		{
-			//TODO permission check
+			//TODO: permission check
 			obj2["cmd"] = "alliance.kickOutMemberfromAlliance";
 			data2["packageId"] = 0.0f;
 
@@ -5519,6 +5525,21 @@ void request_handler::handle_request(const request& req, reply& rep)
 // 			req.connection->client_ = client;
 // 			//TODO: set client stuff
 // 		}
+ 
+		if (gserver->maxplayersonline >= gserver->currentplayersonline+1)
+		{
+			amf3object obj;
+			obj["cmd"] = "server.LoginResponse";
+			obj["data"] = amf3object();
+			amf3object & data = obj["data"];
+			data["packageId"] = 0.0f;
+			data["ok"] = -99;
+			data["errorMsg"] = "Servers are currently overloaded. Please try again later.";
+
+			rep.objects.push_back(obj);
+			return;
+		}
+		gserver->currentplayersonline++;
 
 		char newuser[50];
 		char newpass[50];
