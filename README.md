@@ -18,6 +18,6 @@ Unavailable.
 
 Downloads:
 
-[Dependencies (extract into root directory)](http://www.mediafire.com/file/df9rogz5poyzbxs/dependencies.7z)
+[Dependencies (extract into root directory)](http://www.mediafire.com/file/yeri4jbu7rwgoe6/dependencies.7z)
 
 [MySQL initial database dump](http://www.mediafire.com/file/kk7b6s560j2r876/mysql_dump.7z)
