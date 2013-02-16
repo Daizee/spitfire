@@ -5526,7 +5526,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 // 			//TODO: set client stuff
 // 		}
  
-		if (gserver->maxplayersonline >= gserver->currentplayersonline+1)
+		if (gserver->maxplayersonline <= gserver->currentplayersonline+1)
 		{
 			amf3object obj;
 			obj["cmd"] = "server.LoginResponse";

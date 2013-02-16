@@ -160,7 +160,13 @@ void connection::handle_read(const asio::error_code& e,
 		amf3parser * cparser = new amf3parser(buffer_.data());
 		request_.object = cparser->ReadNextObject();
 		request_.connection = this;
-		request_handler_.handle_request(request_, reply_);
+		try {
+			request_handler_.handle_request(request_, reply_);
+		}
+		catch (std::exception& e)
+		{
+			std::cerr << "handle_request() exception: " << e.what() << "\n";
+		}
 		delete cparser;
 		if (reply_.objects.size() > 0)
 		{

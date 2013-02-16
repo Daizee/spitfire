@@ -654,6 +654,7 @@ amf3object Map::GetMapCastle(int32_t fieldid, int32_t clientid)
 		field["canTrans"] = false;
 		field["zoneName"] = states[GetStateFromID(fieldid)];
 		field["id"] = fieldid;
+		field["name"] = tile->m_city->m_cityname;
 	}
 	else
 	{

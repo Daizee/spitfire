@@ -71,7 +71,8 @@ server::server()
 	accounts(0),
 	msql(0),
 	msql2(0),
-	m_map(0)
+	m_map(0),
+	currentplayersonline(0)
 {
 	serverstatus = 0;//offline
 	m_servername = 0;
@@ -460,8 +461,19 @@ void server::run()
 	{
 		m_map->m_tile[x].m_id = x;
 		m_map->m_tile[x].m_ownerid = -1;
-		m_map->m_tile[x].m_type = rand()%11;
-		m_map->m_tile[x].m_level = rand()%11;
+		//make every tile an npc
+		m_map->m_tile[x].m_type = NPC;
+		//m_map->m_tile[x].m_type = rand()%11;
+		m_map->m_tile[x].m_level = (rand()%10)+1;
+
+		if (m_map->m_tile[x].m_type == NPC)
+		{
+			NpcCity * city = (NpcCity *)gserver->AddNpcCity(m_map->m_tile[x].m_id);
+			city->Initialize(true, true);
+			city->m_level = m_map->m_tile[x].m_level;
+			city->m_ownerid = m_map->m_tile[x].m_ownerid;
+			gserver->m_map->m_tile[m_map->m_tile[x].m_id].m_zoneid = gserver->m_map->GetStateFromID(m_map->m_tile[x].m_id);
+		}
 
 
 		if ((x+1)%((DEF_MAPSIZE*DEF_MAPSIZE)/100) == 0)
@@ -1621,9 +1633,9 @@ void * SaveData(void *ch)
 					sprintf_s(temp1, 1000, "%d,%d,%d,%d,%d", tempcity->m_forts.traps, tempcity->m_forts.abatis, tempcity->m_forts.towers, tempcity->m_forts.logs, tempcity->m_forts.trebs);
 					fortification = temp1;
 
-					for (int j = 1; j < 12; ++j)
+					for (int j = 2; j <= 13; ++j)
 					{
-						if (j != 1)
+						if (j != 2)
 							troop += "|";
 						sprintf_s(temp1, 1000, XI64, tempcity->GetTroops(j));
 						troop += temp1;

@@ -1030,7 +1030,7 @@ int64_t PlayerCity::GetTroops(int8_t type)
 		return m_troops.cavalry;
 	else if (type == TR_CATAPHRACT)
 		return m_troops.cataphract;
-	return -1;
+	return 0;
 }
 
 void PlayerCity::ParseTroops(char * str)
@@ -1042,10 +1042,17 @@ void PlayerCity::ParseTroops(char * str)
 		char * ch = 0, * cr = 0;
 		char * tok;
 		tok = strtok_s(str, "|", &ch);
+		int64_t tr = 0;
 		for (int i = 0; i < 12; ++i,tok = strtok_s(0, "|", &ch))
 		{
 			if (tok != 0)
-				SetTroops(i, _atoi64(tok));
+			{
+				tr = _atoi64(tok);
+				if (tr < 0)
+					SetTroops(i, 0);
+				else
+					SetTroops(i, tr);
+			}
 		}
 	}
 }

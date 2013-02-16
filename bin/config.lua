@@ -3,7 +3,7 @@
 --]]
  
 --[[
-bindip/port = ip and port to host on (typically 0.0.0.0 and 443)
+ipaddress/port = ip and port to host on (typically 0.0.0.0 and 443)
 
 maxplayersloaded = Maximum amount of active accounts allowed (accounts are
 		created by logging in once and creating a city) - WARNING: Setting
