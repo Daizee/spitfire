@@ -24,6 +24,20 @@
 namespace spitfire {
 namespace server {
 
+#include <sys/timeb.h>
+
+uint64_t unixtime()
+{
+#ifdef WIN32
+	struct __timeb64 tstruct;
+	_ftime64_s( &tstruct );
+#else
+	struct timeb tstruct;
+	ftime( &tstruct );
+#endif
+	return tstruct.millitm + tstruct.time*1000;
+}
+
 void Log( char * str, ...)
 {
 	va_list argptr;
@@ -123,6 +137,7 @@ int htoi(char hex)
 	case 102://f
 		return 15;
 	}
+	return 0;
 }
 char itoh(int num)
 {
@@ -161,6 +176,7 @@ char itoh(int num)
 	case 15://f
 		return 102;
 	}
+	return 0;
 }
 //m_tile[y*mapsize+x].m_id = y*mapsize+x;
 
@@ -205,6 +221,57 @@ typedef struct tagBOX
 	int y1;
 	int y2;
 } BOX;
+
+
+
+
+char * GetBuildingName(int id)
+{
+	switch (id)
+	{
+	case 1:
+		return "Cottage";
+	case 2:
+		return "Barracks";
+	case 3:
+		return "Warehouse";
+	case 4:
+		return "Sawmill";
+	case 5:
+		return "Stonemine";
+	case 6:
+		return "Ironmine";
+	case 7:
+		return "Farm";
+	case 20:
+		return "Stable";
+	case 21:
+		return "Inn";
+	case 22:
+		return "Forge";
+	case 23:
+		return "Marketplace";
+	case 24:
+		return "Relief Station";
+	case 25:
+		return "Academy";
+	case 26:
+		return "Workshop";
+	case 27:
+		return "Feasting Hall";
+	case 28:
+		return "Embassy";
+	case 29:
+		return "Rally Spot";
+	case 30:
+		return "Beacon Tower";
+	case 31:
+		return "Town Hall";
+	case 32:
+		return "Walls";
+	}
+	return "Failed";
+}
 
 }
 }

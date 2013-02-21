@@ -32,6 +32,8 @@
 #include "connection_manager.hpp"
 #include "request_handler.hpp"
 
+#include "funcs.h"
+
 #include "Map.h"
 #include "amf3.h"
 #include "Alliance.h"
@@ -111,13 +113,14 @@ public:
 	Client * GetClient(int accountid);
 	Client * GetClientByParent(int accountid);
 	Client * GetClientByName(string name);
-	int32_t  GetClientID(int32_t accountid);
+	Client * GetClientByCastle(int32_t castleid);
+	int32_t  GetClientIndex(int32_t accountid);
 	void CloseClient(int id);
 	City * AddPlayerCity(int clientindex, int tileid, uint32_t castleid);
 	City * AddNpcCity(int tileid);
 	void MassMessage(string str, bool nosender = false, bool tv = false, bool all = false);
 
-	Client ** m_clients; // max connectable clients
+	Client ** m_clients;
 
 	void SendObject(uint s, amf3object & object)
 	{
@@ -183,172 +186,13 @@ public:
 
 	uint64_t ltime;
 
-#pragma region structs and stuff
-
-	struct stPrereq
-	{
-		int32_t id;
-		int32_t level;
-	};
-
-	struct stItem
-	{
-		string name;
-		int32_t cost;
-		int32_t saleprice;
-		int32_t daylimit;
-		int32_t type;
-		bool cangamble;
-		bool buyable;
-		int32_t rarity;//no not the pony
-	};
-
+	uint64_t armycounter;
 	string m_itemxml;
-
-	struct stRarityGamble
-	{
-		vector<stItem*> common;
-		vector<stItem*> special;
-		vector<stItem*> rare;
-		vector<stItem*> superrare;
-		vector<stItem*> ultrarare;
-	} m_gambleitems;
-	stItem m_items[DEF_MAXITEMS];
+	stItemConfig m_items[DEF_MAXITEMS];
 	int m_itemcount;
-
-	struct stBuildingConfig
-	{
-		int32_t food;
-		int32_t wood;
-		int32_t iron;
-		int32_t stone;
-		int32_t gold;
-		int32_t population;
-		double time;
-		double destructtime;
-		stPrereq buildings[3];
-		stPrereq techs[3];
-		stPrereq items[3];
-		int32_t limit;
-		int32_t inside;
-		int32_t prestige;
-	};
-
-	struct stMarketEntry
-	{
-		double amount;
-		double price;
-		uint32_t clientid;
-		uint32_t cityid;
-	};
-
-	struct stArmyMovement
-	{
-		PlayerCity::stTroops troops;
-		Hero * hero;
-		Client * client;
-	};
-	struct stTrainingAction
-	{
-		int32_t troopcount;
-		int8_t trooptype;
-		int8_t buildingid;
-		Client * client;
-	};
-	struct stBuildingAction
-	{
-		PlayerCity * city;
-		Client * client;
-		int16_t positionid;
-	};
-	struct stResearchAction
-	{
-		PlayerCity * city;
-		Client * client;
-		int16_t researchid;
-	};
-
-	struct stTimedEvent
-	{
-		int8_t type;
-		void * data;
-	};
-
-	struct stIntRank
-	{
-		uint32_t value;
-		uint32_t id;
-	};
-
-	struct stClientRank
-	{
-		Client * client;
-		int32_t rank;
-	};
-
-	struct stHeroRank
-	{
-		int16_t stratagem;
-		int16_t power;
-		int16_t management;
-		int16_t grade;
-		string name;
-		string kind;
-		int32_t rank;
-	};
-
-	struct stCastleRank
-	{
-		int16_t level;
-		int32_t population;
-		string name;
-		string grade;
-		string alliance;
-		string kind;
-		int32_t rank;
-	};
-
-	struct stSearchClientRank
-	{
-		list<stClientRank> ranklist;
-		list<stClientRank> * rlist;
-		string key;
-		uint64_t lastaccess;
-	};
-
-	struct stSearchHeroRank
-	{
-		list<stHeroRank> ranklist;
-		list<stHeroRank> * rlist;
-		string key;
-		uint64_t lastaccess;
-	};
-
-	struct stSearchCastleRank
-	{
-		list<stCastleRank> ranklist;
-		list<stCastleRank> * rlist;
-		string key;
-		uint64_t lastaccess;
-	};
-
-	struct stSearchAllianceRank
-	{
-		list<stAlliance> ranklist;
-		list<stAlliance> * rlist;
-		string key;
-		uint64_t lastaccess;
-	};
-
-	struct stPacketOut
-	{
-		int32_t client;
-		amf3object obj;
-	};
+	stRarityGamble m_gambleitems;
 
 
-
-#pragma endregion
 
 	list<stMarketEntry> m_marketbuy;
 	list<stMarketEntry> m_marketsell;
@@ -361,7 +205,7 @@ public:
 #define DEF_TIMEDBUILDING 2
 #define DEF_TIMEDRESEARCH 3
 
-	stItem * GetItem(string name);
+	stItemConfig * GetItem(string name);
 
 	double GetPrestigeOfAction(int8_t action, int8_t id, int8_t level, int8_t thlevel);
 
@@ -438,6 +282,19 @@ public:
 
 	void * DoRankSearch(string key, int8_t type, void * subtype, int16_t page, int16_t pagesize);
 	void CheckRankSearchTimeouts(uint64_t time);
+
+
+	amf3object CreateError(int32_t id, string message)
+	{
+		amf3object obj;
+		obj["cmd"] = "server.newArmy";
+		obj["data"] = amf3object();
+		amf3object & data = obj["data"];
+		data["errorMsg"] = message;
+		data["packageId"] = 0.0f;
+		data["ok"] = id;
+		return obj;
+	}
 };
 
 } // namespace server

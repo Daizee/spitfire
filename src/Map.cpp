@@ -253,6 +253,11 @@ int Map::GetStateFromID(int id)
 	return GetStateFromXY(GETX, GETY);
 }
 
+Tile * Map::GetTileFromID(int id)
+{
+	return &m_tile[id];
+}
+
 amf3object Map::GetTileRangeObject(int32_t clientid, int x1, int x2, int y1, int y2)
 {
 	amf3object data = amf3object();
@@ -386,6 +391,7 @@ amf3object Map::GetTileRangeObject(int32_t clientid, int x1, int x2, int y1, int
 						castleobject["honor"] = client->m_honor;
 						castleobject["userName"] = client->m_playername.c_str();
 						castleobject["flag"] = client->m_flag.c_str();
+						castleobject["changeface"] = client->changeface;
 
 						if (client->m_allianceid > 0)
 							castleobject["allianceName"] = client->m_alliancename.c_str();

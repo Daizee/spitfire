@@ -288,7 +288,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			int x2 = data["x2"];
 			int y1 = data["y1"];
 			int y2 = data["y2"];
-			int castleId = data["castleId"];
+			uint32_t castleId = data["castleId"];
 
 
 			obj2["cmd"] = "common.mapInfoSimple";
@@ -1023,9 +1023,9 @@ void request_handler::handle_request(const request& req, reply& rep)
 
 			MULTILOCK(M_CASTLELIST, M_TIMEDLIST);
 
-			server::stBuildingAction * ba = new server::stBuildingAction;
+			stBuildingAction * ba = new stBuildingAction;
 
-			server::stTimedEvent te;
+			stTimedEvent te;
 			ba->city = pcity;
 			ba->client = client;
 			ba->positionid = positionid;
@@ -1114,9 +1114,9 @@ void request_handler::handle_request(const request& req, reply& rep)
 
 			MULTILOCK(M_CASTLELIST, M_TIMEDLIST);
 
-			server::stBuildingAction * ba = new server::stBuildingAction;
+			stBuildingAction * ba = new stBuildingAction;
 
-			server::stTimedEvent te;
+			stTimedEvent te;
 			ba->city = pcity;
 			ba->client = client;
 			ba->positionid = positionid;
@@ -1233,9 +1233,9 @@ void request_handler::handle_request(const request& req, reply& rep)
 			pcity->m_resources.gold -= gserver->m_buildingconfig[buildingtype][buildinglevel].gold;
 
 			MULTILOCK(M_CASTLELIST, M_TIMEDLIST);
-			server::stBuildingAction * ba = new server::stBuildingAction;
+			stBuildingAction * ba = new stBuildingAction;
 
-			server::stTimedEvent te;
+			stTimedEvent te;
 			ba->city = pcity;
 			ba->client = client;
 			ba->positionid = positionid;
@@ -1400,7 +1400,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 
 			char * speeditemid;
 			int positionid = data["positionId"];
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			speeditemid = data["itemId"];
 
@@ -1526,11 +1526,11 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		if ((command == "getCoinsNeed"))
 		{
-			int positionid = data["positionId"];
-			int castleid = data["castleId"];
-
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
+
+			int positionid = data["positionId"];
+			uint32_t castleid = data["castleId"];
 
 			obj2["cmd"] = "castle.getCoinsNeed";
 			data2["packageId"] = 0.0f;
@@ -1545,7 +1545,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 			int positionid  = data["positionId"];
 
 			obj2["cmd"] = "castle.cancleBuildCommand";
@@ -1553,11 +1553,11 @@ void request_handler::handle_request(const request& req, reply& rep)
 			data2["packageId"] = 0.0f;
 
 			LOCK(M_TIMEDLIST);
-			list<server::stTimedEvent>::iterator iter;
+			list<stTimedEvent>::iterator iter;
 			if (gserver->buildinglist.size() > 0)
 			for (iter = gserver->buildinglist.begin(); iter != gserver->buildinglist.end(); )
 			{
-				server::stBuildingAction * ba = (server::stBuildingAction *)iter->data;
+				stBuildingAction * ba = (stBuildingAction *)iter->data;
 				if (ba->positionid == positionid)
 				{
 					Client * client = ba->client;
@@ -1654,7 +1654,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		{
 			VERIFYCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 			int questtype = data["type"];
 
 			if (questtype == 1)
@@ -1708,7 +1708,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		{
 			VERIFYCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			obj2["cmd"] = "quest.getQuestList";
 			data2["ok"] = 1;
@@ -2956,7 +2956,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		{
 			VERIFYCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			obj2["cmd"] = "tech.getResearchList";
 			data2["ok"] = 1;
@@ -3083,7 +3083,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 			int techid = data["techId"];
 
 			if (techid < 0 || techid > 25 || client->m_research[techid].level >= 10 || gserver->m_researchconfig[techid][client->m_research[techid].level].time == 0)
@@ -3097,8 +3097,8 @@ void request_handler::handle_request(const request& req, reply& rep)
 				return;
 			}
 
-			Client::stResearch * research;
-			server::stBuildingConfig * researchconfig;
+			stResearch * research;
+			stBuildingConfig * researchconfig;
 
 			research = &client->m_research[techid];
 			researchconfig = &gserver->m_researchconfig[techid][research->level];
@@ -3144,9 +3144,9 @@ void request_handler::handle_request(const request& req, reply& rep)
 
 				research->starttime = timestamp;
 
-				server::stResearchAction * ra = new server::stResearchAction;
+				stResearchAction * ra = new stResearchAction;
 
-				server::stTimedEvent te;
+				stTimedEvent te;
 				ra->city = pcity;
 				ra->client = client;
 				ra->researchid = techid;
@@ -3249,7 +3249,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 			PlayerCity * pcity = client->GetCity(castleid);
 			uint16_t techid = 0;
 
@@ -3273,8 +3273,8 @@ void request_handler::handle_request(const request& req, reply& rep)
 				return;
 			}
 
-			Client::stResearch * research;
-			server::stBuildingConfig * researchconfig;
+			stResearch * research;
+			stBuildingConfig * researchconfig;
 
 
 			research = &client->m_research[techid];
@@ -3293,13 +3293,13 @@ void request_handler::handle_request(const request& req, reply& rep)
 				pcity->m_resources.iron += double(researchconfig->iron)/3;
 				pcity->m_resources.gold += double(researchconfig->gold)/3;
 
-				list<server::stTimedEvent>::iterator iter;
+				list<stTimedEvent>::iterator iter;
 
 
 				LOCK(M_TIMEDLIST);
 				for (iter = gserver->researchlist.begin(); iter != gserver->researchlist.end(); )
 				{
-					server::stResearchAction * ra = (server::stResearchAction *)iter->data;
+					stResearchAction * ra = (stResearchAction *)iter->data;
 					PlayerCity * city = ra->city;
 					if (city->m_castleid == castleid)
 					{
@@ -3328,11 +3328,11 @@ void request_handler::handle_request(const request& req, reply& rep)
 			CHECKCASTLEID();
 
 			char * speeditemid;
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			speeditemid = data["itemId"];
 
-			Client::stResearch * research = 0;
+			stResearch * research = 0;
 			for (int i = 0; i < 25; ++i)
 			{
 				if (client->m_research[i].castleid == pcity->m_castleid)
@@ -3466,7 +3466,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			CHECKCASTLEID();
 
 			int positionid = data["positionId"];
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			obj2["cmd"] = "castle.getCoinsNeed";
 			data2["packageId"] = 0.0f;
@@ -3491,7 +3491,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			obj2["cmd"] = "rank.getPlayerRank";
 			data2["packageId"] = 0.0f;
 			data2["ok"] = 1;
-			list<server::stClientRank> * ranklist;
+			list<stClientRank> * ranklist;
 			amf3array beans = amf3array();
 			LOCK(M_RANKEDLIST);
 			switch (sorttype)
@@ -3515,7 +3515,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 				ranklist = &gserver->m_prestigerank;
 				break;
 			}
-			list<server::stClientRank>::iterator iter;
+			list<stClientRank>::iterator iter;
 			if (pagesize <= 0 || pagesize > 20 || pageno < 0 || pageno > 100000)
 			{
 				data2["ok"] = -99;
@@ -3527,7 +3527,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			if (key.length() > 0)
 			{
 				//search term given
-				ranklist = (list<server::stClientRank>*)gserver->DoRankSearch(key, 1, ranklist, pageno, pagesize);//1 = client
+				ranklist = (list<stClientRank>*)gserver->DoRankSearch(key, 1, ranklist, pageno, pagesize);//1 = client
 			}
 
 			if ((pageno-1)*pagesize > ranklist->size())
@@ -3679,7 +3679,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			obj2["cmd"] = "rank.getHeroRank";
 			data2["packageId"] = 0.0f;
 			data2["ok"] = 1;
-			list<server::stHeroRank> * ranklist;
+			list<stHeroRank> * ranklist;
 			amf3array beans = amf3array();
 			LOCK(M_RANKEDLIST);
 			switch (sorttype)
@@ -3700,7 +3700,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 					ranklist = &gserver->m_herorankgrade;
 					break;
 			}
-			list<server::stHeroRank>::iterator iter;
+			list<stHeroRank>::iterator iter;
 			if (pagesize <= 0 || pagesize > 20 || pageno < 0 || pageno > 100000)
 			{
 				data2["ok"] = -99;
@@ -3713,7 +3713,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			if (key.length() > 0)
 			{
 				//search term given
-				ranklist = (list<server::stHeroRank>*)gserver->DoRankSearch(key, 2, ranklist, pageno, pagesize);//1 = client
+				ranklist = (list<stHeroRank>*)gserver->DoRankSearch(key, 2, ranklist, pageno, pagesize);//1 = client
 			}
 
 			if ((pageno-1)*pagesize > ranklist->size())
@@ -3764,7 +3764,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			obj2["cmd"] = "rank.getCastleRank";
 			data2["packageId"] = 0.0f;
 			data2["ok"] = 1;
-			list<server::stCastleRank> * ranklist;
+			list<stCastleRank> * ranklist;
 			amf3array beans = amf3array();
 			LOCK(M_RANKEDLIST);
 			switch (sorttype)
@@ -3779,7 +3779,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 				ranklist = &gserver->m_castlerankpopulation;
 				break;
 			}
-			list<server::stCastleRank>::iterator iter;
+			list<stCastleRank>::iterator iter;
 			if (pagesize <= 0 || pagesize > 20 || pageno < 0 || pageno > 100000)
 			{
 				data2["ok"] = -99;
@@ -3792,7 +3792,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			if (key.length() > 0)
 			{
 				//search term given
-				ranklist = (list<server::stCastleRank>*)gserver->DoRankSearch(key, 3, ranklist, pageno, pagesize);//1 = client
+				ranklist = (list<stCastleRank>*)gserver->DoRankSearch(key, 3, ranklist, pageno, pagesize);//1 = client
 			}
 
 			if ((pageno-1)*pagesize > ranklist->size())
@@ -4011,19 +4011,19 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 			
 			obj2["cmd"] = "fortifications.getProduceQueue";
 			data2["packageId"] = 0.0f;
 			data2["ok"] = 1;
 
 			amf3array producequeue = amf3array();
-			PlayerCity::stTroopQueue * train = pcity->GetBarracksQueue(-2);
+			stTroopQueue * train = pcity->GetBarracksQueue(-2);
 			amf3object producequeueobj = amf3object();
 			amf3array producequeueinner = amf3array();
 			amf3object producequeueinnerobj = amf3object();
 
-			list<PlayerCity::stTroopTrain>::iterator iter;
+			list<stTroopTrain>::iterator iter;
 
 			if (train->queue.size() > 0)
 				for (iter = train->queue.begin(); iter != train->queue.end(); ++iter)
@@ -4049,7 +4049,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			obj2["cmd"] = "fortifications.getFortificationsProduceList";
 			amf3array fortlist = amf3array();
@@ -4147,7 +4147,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 
 			obj2["cmd"] = "fortifications.produceWallProtect";
@@ -4200,7 +4200,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 			int positionid = data["positionId"];
 			int queueid = data["queueId"];
 
@@ -4210,8 +4210,8 @@ void request_handler::handle_request(const request& req, reply& rep)
 			data2["ok"] = 1;
 
 
-			PlayerCity::stTroopQueue * tq = pcity->GetBarracksQueue(-2);
-			list<PlayerCity::stTroopTrain>::iterator iter;
+			stTroopQueue * tq = pcity->GetBarracksQueue(-2);
+			list<stTroopTrain>::iterator iter;
 
 			for (iter = tq->queue.begin(); iter != tq->queue.end(); )
 			{
@@ -4266,7 +4266,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			obj2["cmd"] = "troop.getProduceQueue";
 			data2["packageId"] = 0.0f;
@@ -4278,7 +4278,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 				stBuilding * building = pcity->GetBuilding(i);
 				if (building->type == B_BARRACKS)
 				{
-					PlayerCity::stTroopQueue * train = pcity->GetBarracksQueue(i);
+					stTroopQueue * train = pcity->GetBarracksQueue(i);
 
 					if (train == 0)
 					{
@@ -4290,7 +4290,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 					amf3array producequeueinner = amf3array();
 					amf3object producequeueinnerobj = amf3object();
 
-					list<PlayerCity::stTroopTrain>::iterator iter;
+					list<stTroopTrain>::iterator iter;
 
 					if (train->queue.size() > 0)
 					for (iter = train->queue.begin(); iter != train->queue.end(); ++iter)
@@ -4318,7 +4318,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			obj2["cmd"] = "troop.getTroopProduceList";
 			amf3array trooplist = amf3array();
@@ -4427,7 +4427,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 
 			obj2["cmd"] = "troop.produceTroop";
@@ -4500,7 +4500,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 			int positionid = data["positionId"];
 			int queueid = data["queueId"];
 
@@ -4510,8 +4510,8 @@ void request_handler::handle_request(const request& req, reply& rep)
 			data2["ok"] = 1;
 
 
-			PlayerCity::stTroopQueue * tq = pcity->GetBarracksQueue(positionid);
-			list<PlayerCity::stTroopTrain>::iterator iter;
+			stTroopQueue * tq = pcity->GetBarracksQueue(positionid);
+			list<stTroopTrain>::iterator iter;
 			
 			for (iter = tq->queue.begin(); iter != tq->queue.end(); )
 			{
@@ -4566,7 +4566,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			int temp = data["tax"];
 			if (temp < 0 || temp > 100)
@@ -4595,7 +4595,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			if (timestamp - pcity->m_lastcomfort < 15*60*1000)
 			{
@@ -4720,7 +4720,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			if (timestamp - pcity->m_lastlevy < 15*60*1000)
 			{
@@ -4796,7 +4796,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			int temp = data["foodrate"];
 			
@@ -4859,7 +4859,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			obj2["cmd"] = "interior.getResourceProduceData";
 			data2["packageId"] = 0.0f;
@@ -5058,9 +5058,9 @@ void request_handler::handle_request(const request& req, reply& rep)
 					pcity->CalculateStats();
 					pcity->CalculateResources();
 					if (pcity->m_mayor)
-						pcity->m_mayor->m_status = 0;
+						pcity->m_mayor->m_status = DEF_HEROIDLE;
 					pcity->m_mayor = pcity->m_heroes[i];
-					pcity->m_heroes[i]->m_status = 1;
+					pcity->m_heroes[i]->m_status = DEF_HEROMAYOR;
 
 					pcity->HeroUpdate(pcity->m_mayor, 2);
 					pcity->CalculateResourceStats();
@@ -5342,7 +5342,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 			char * logurl = data["logUrl"];
 			char * name = data["name"];
 
@@ -5497,7 +5497,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			VERIFYCASTLEID();
 			CHECKCASTLEID();
 
-			int castleid = data["castleId"];
+			uint32_t castleid = data["castleId"];
 
 			amf3object obj3;
 			obj3["cmd"] = "server.InjuredTroopUpdate";
@@ -5506,6 +5506,184 @@ void request_handler::handle_request(const request& req, reply& rep)
 			data3["castleId"] = 0.0f;
 			data3["troop"] = client->GetFocusCity()->InjuredTroops();
 			rep.objects.push_back(obj3);
+			return;
+		}
+		if (command == "getTroopParam")
+		{
+			VERIFYCASTLEID();
+			CHECKCASTLEID();
+
+			uint32_t castleid = data["castleId"];
+
+			amf3object obj3;
+			obj3["cmd"] = "army.getTroopParam";
+			obj3["data"] = amf3object();
+			amf3object & data3 = obj3["data"];
+			data3["marchSkillParam"] = client->GetResearchLevel(T_COMPASS) * 10;
+			data3["loadSkillParam"] = client->GetResearchLevel(T_LOGISTICS) * 10;
+			data3["packageId"] = 0.0f;
+			data3["ok"] = 1;
+			data3["driveSkillParam"] = client->GetResearchLevel(T_HORSEBACKRIDING) * 5;
+			data3["transportStationParam"] = client->GetFocusCity()->GetReliefMultiplier();
+			rep.objects.push_back(obj3);
+			return;
+		}
+		if (command == "newArmy")
+		{
+			VERIFYCASTLEID();
+			CHECKCASTLEID();
+
+			amf3object & armybean = data["newArmyBean"];
+			uint32_t castleid = data["castleId"];
+			int32_t targettile = armybean["targetPoint"];
+			amf3object & otroops = armybean["troops"];
+			amf3object & oresources = armybean["resource"];
+			stResources resources = { oresources["gold"], oresources["food"], oresources["wood"], oresources["stone"], oresources["iron"] };
+			bool useflag = armybean["useFlag"];
+			bool backafterconstruct = armybean["backAfterConstruct"];
+			int64_t heroid = armybean["heroId"];
+			int64_t resttime = armybean["restTime"];// in seconds
+			int16_t missiontype = armybean["missionType"];// 1 = transport | 2 = reinforce | 3 = scout | 4 = build | 5 = attack 
+
+			stTroops troops;
+			troops.archer = otroops["archer"];
+			troops.ballista = otroops["ballista"];
+			troops.cataphract = otroops["heavyCavalry"];
+			troops.catapult = otroops["catapult"];
+			troops.cavalry = otroops["lightCavalry"];
+			troops.pike = otroops["pikemen"];
+			troops.ram = otroops["batteringRam"];
+			troops.scout = otroops["scouter"];
+			troops.sword = otroops["swordsmen"];
+			troops.transporter = otroops["carriage"];
+			troops.warrior = otroops["militia"];
+			troops.worker = otroops["peasants"];
+
+			Tile * tile;
+			tile = gserver->m_map->GetTileFromID(targettile);
+			Client * oclient = 0;
+			PlayerCity * pcity = client->GetFocusCity();
+			int16_t rally = pcity->GetBuildingLevel(B_RALLYSPOT);
+			if (rally < pcity->armymovement.size())
+			{
+				//can't send any more armies out
+				rep.objects.push_back(gserver->CreateError(-51, "No more troops are allowed to sent at current level of Rally Spot. Please upgrade the Rally Spot first."));
+				return;
+			}
+
+			if (missiontype == 3 || missiontype == 5)// scout or attack
+			{
+				if (client->Beginner())
+				{
+					rep.objects.push_back(gserver->CreateError(-69, "Beginner's Protection will automatically expired 7 days after registration or Town Hall reaches level 5."));
+					return;
+				}
+				// check if valid enemy
+				if (tile->m_ownerid > 0)
+				{
+					//player owned
+					oclient = gserver->GetClient(tile->m_ownerid);
+					if (oclient == 0)
+					{
+						//error occurred
+						amf3object obj3;
+						obj3["cmd"] = "server.newArmy";
+						obj3["data"] = amf3object();
+						amf3object & data3 = obj3["data"];
+						data3["errorMsg"] = "Problem with internal mapdata. Please report this bug.";
+						data3["packageId"] = 0.0f;
+						data3["ok"] = -13;
+						rep.objects.push_back(obj3);
+						return;
+					}
+					//TODO: this will need changed for Age2 support (individual war status) (army.newArmy alliance checking)
+					int16_t relation = gserver->m_alliances->GetRelation(client->m_clientnumber, oclient->m_clientnumber);
+					if (oclient->Beginner() || relation == DEF_SELFRELATION || relation == DEF_ALLIANCE || relation == DEF_ALLY)
+					{
+						//attacking beginner, self, own alliance, or allied alliance. reject attack
+						rep.objects.push_back(gserver->CreateError(-13, "You can't perform this operation against this target."));
+						return;
+					}
+					//you CAN attack this target. set everything up to pass to timers.
+					if (!pcity->HasTroops(troops))
+					{
+						//not enough troops
+						rep.objects.push_back(gserver->CreateError(-29, "You have insufficient troops."));
+						return;
+					}
+					//you have enough troops, valid target, gogogo
+
+					//check hero existence and status
+					Hero * hero = pcity->GetHero(heroid);
+					if (hero == 0)
+					{
+						//hero doesn't exist
+						rep.objects.push_back(gserver->CreateError(-80, "Hero does not exist."));
+						return;
+					}
+					if (hero->m_status != DEF_HEROIDLE)
+					{
+						//hero busy
+						rep.objects.push_back(gserver->CreateError(-80, "Status of this hero is not Idle."));
+						return;
+					}
+
+					stArmyMovement * am = new stArmyMovement;
+
+					stTimedEvent te;
+					am->armyid = gserver->armycounter++;
+					am->hero = hero;
+					am->resources += resources;
+					am->troops += troops;
+					am->city = pcity;
+					am->client = client;
+					te.data = am;
+					te.type = DEF_TIMEDARMY;
+
+					gserver->AddTimedEvent(te);
+
+					pcity->armymovement.push_back(am);
+
+					//timer made, remove troops from city
+					pcity->m_troops -= troops;
+					pcity->TroopUpdate();
+				}
+			}
+
+
+
+			Alliance * all1 = client->GetAlliance();
+
+
+// 			["data"] Type: Object - Value: Object
+// 			  ["castleId"] Type: Integer - Value: 1085204
+// 			  ["newArmyBean"] Type: Object - Value: Object
+// 				["restTime"] Type: Integer - Value: 0
+// 				["heroId"] Type: Integer - Value: 637322
+// 				["missionType"] Type: Integer - Value: 5
+// 				["troops"] Type: Object - Value: Object
+// 				  ["militia"] Type: Integer - Value: 0
+// 				  ["swordsmen"] Type: Integer - Value: 0
+// 				  ["peasants"] Type: Integer - Value: 0
+// 				  ["archer"] Type: Integer - Value: 0
+// 				  ["scouter"] Type: Integer - Value: 0
+// 				  ["heavyCavalry"] Type: Integer - Value: 0
+// 				  ["pikemen"] Type: Integer - Value: 0
+// 				  ["batteringRam"] Type: Integer - Value: 0
+// 				  ["carriage"] Type: Integer - Value: 2215
+// 				  ["ballista"] Type: Integer - Value: 1263
+// 				  ["lightCavalry"] Type: Integer - Value: 0
+// 				  ["catapult"] Type: Integer - Value: 0
+// 				["resource"] Type: Object - Value: Object
+// 				  ["stone"] Type: Integer - Value: 0
+// 				  ["food"] Type: Integer - Value: 0
+// 				  ["iron"] Type: Integer - Value: 0
+// 				  ["wood"] Type: Integer - Value: 0
+// 				  ["gold"] Type: Integer - Value: 0
+// 				["targetPoint"] Type: Integer - Value: 129249
+// 				["useFlag"] Type: Boolean - Value: False
+// 				["backAfterConstruct"] Type: Boolean - Value: False
+
 		}
 	}
 
@@ -5744,7 +5922,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 
 
 					//check for holiday status
-					Client::stBuff * holiday = client->GetBuff("FurloughBuff");
+					stBuff * holiday = client->GetBuff("FurloughBuff");
 					if (holiday && holiday->endtime > tslag)
 					{
 						//is in holiday - send holiday info too
@@ -6104,7 +6282,7 @@ void ShopUseGoods(amf3object & data, Client * client)
 		amf3array itembeans = amf3array();
 		amf3array gamblingbeans = amf3array();
 
-		server::stItem * randitem = &gserver->m_items[rand()%gserver->m_itemcount];
+		stItemConfig * randitem = &gserver->m_items[rand()%gserver->m_itemcount];
 
 		amf3object item = amf3object();
 		item["id"] = randitem->name;
@@ -6208,7 +6386,7 @@ amf3object GenerateGamble()
 	for (int i = 0; i < 16; ++i)
 	{
 		amf3object obj = amf3object();
-		server::stItem * item = gserver->m_gambleitems.common.at(rand()%gserver->m_gambleitems.common.size());
+		stItemConfig * item = gserver->m_gambleitems.common.at(rand()%gserver->m_gambleitems.common.size());
 		obj["id"] = item->name;
 		obj["count"] = GetGambleCount(item->name);
 		obj["kind"] = item->rarity-1;
@@ -6218,7 +6396,7 @@ amf3object GenerateGamble()
 	for (int i = 0; i < 4; ++i)
 	{
 		amf3object obj = amf3object();
-		server::stItem * item = gserver->m_gambleitems.special.at(rand()%gserver->m_gambleitems.special.size());
+		stItemConfig * item = gserver->m_gambleitems.special.at(rand()%gserver->m_gambleitems.special.size());
 		obj["id"] = item->name;
 		obj["count"] = GetGambleCount(item->name);
 		obj["kind"] = item->rarity-1;
@@ -6228,7 +6406,7 @@ amf3object GenerateGamble()
 	for (int i = 0; i < 3; ++i)
 	{
 		amf3object obj = amf3object();
-		server::stItem * item = gserver->m_gambleitems.rare.at(rand()%gserver->m_gambleitems.rare.size());
+		stItemConfig * item = gserver->m_gambleitems.rare.at(rand()%gserver->m_gambleitems.rare.size());
 		obj["id"] = item->name;
 		obj["count"] = GetGambleCount(item->name);
 		obj["kind"] = item->rarity-1;
@@ -6237,7 +6415,7 @@ amf3object GenerateGamble()
 	}
 	{
 		amf3object obj = amf3object();
-		server::stItem * item;
+		stItemConfig * item;
 		if (rand()%100 < 95)
 		{
 			item = gserver->m_gambleitems.superrare.at(rand()%gserver->m_gambleitems.superrare.size());
