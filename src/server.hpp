@@ -22,6 +22,7 @@
 #ifndef SPITFIRE_SERVER_HPP
 #define SPITFIRE_SERVER_HPP
 
+#include <boost/thread.hpp>
 #include <asio.hpp>
 #include <iostream>
 #include <list>
@@ -97,6 +98,13 @@ public:
 	CSQLDB * accounts;
 	CSQLDB * msql;
 	CSQLDB * msql2;
+
+	//prepared statements
+	MYSQL_STMT * accountcreation;
+	MYSQL_STMT * citycreation;
+	MYSQL_STMT * herocreation;
+	MYSQL_STMT * tileupdate;
+	MYSQL_BIND bindaccountcreation[10];
 
 	//Lua
 	lua_State *L;
@@ -284,10 +292,10 @@ public:
 	void CheckRankSearchTimeouts(uint64_t time);
 
 
-	amf3object CreateError(int32_t id, string message)
+	amf3object CreateError(string cmd, int32_t id, string message)
 	{
 		amf3object obj;
-		obj["cmd"] = "server.newArmy";
+		obj["cmd"] = cmd;
 		obj["data"] = amf3object();
 		amf3object & data = obj["data"];
 		data["errorMsg"] = message;

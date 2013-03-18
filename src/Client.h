@@ -72,8 +72,8 @@ public:
 	int16_t GetItemCount(int16_t type);
 
 
-	int m_accountid;
-	int m_parentid;
+	int64_t m_accountid;
+	int64_t masteraccountid;
 
 	bool m_accountexists;
 
@@ -141,12 +141,15 @@ public:
 		return 0;
 	}
 
+	vector<stArmyMovement*> armymovement;
+
 	void CalculateResources();
 	void PlayerUpdate();
 	void ItemUpdate(char * itemname);
 	void BuffUpdate(string name, string desc, int64_t endtime, int8_t type = 0);
 	void HeroUpdate(int heroid, int castleid);
 	void MailUpdate();
+	void UpdateSelfArmy();
 	bool HasAlliance()
 	{
 		if (m_allianceid > 0)
@@ -158,24 +161,28 @@ public:
 	PlayerCity * GetCity(int32_t castleid);
 	PlayerCity * GetFocusCity();
 	bool Beginner() { return m_beginner; }
-	void Beginner(bool set) {
-		m_beginner = set;
-		PlayerUpdate();
+	void Beginner(bool set, bool update = true) {
+		if (m_beginner != set)
+		{
+			m_beginner = set;
+			if (update)
+				PlayerUpdate();
+		}
 	}
-	__forceinline void CheckBeginner()
+	__forceinline void CheckBeginner(bool update = true)
 	{
 		if (Beginner())
 		{
 			if ((unixtime() - m_creation) > 1000*60*60*24*7)
 			{
-				Beginner(true);
+				Beginner(false, update);
 				return;
 			}
 			for (int i = 0; i < this->m_city.size(); ++i)
 			{
 				if (m_city[i]->GetBuildingLevel(B_TOWNHALL) >= 5)
 				{
-					Beginner(true);
+					Beginner(false, update);
 					return;
 				}
 			}

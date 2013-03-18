@@ -72,7 +72,7 @@ Client::Client(server * core)
 	m_cents = 0;
 	m_office = "Civilian";
 	m_bdenyotherplayer = false;
-	m_parentid = 0;
+	masteraccountid = 0;
 	m_icon = 0;
 	m_changedface = false;
 	changeface = 0;//1 = xmas, 2 = halloween maybe?, more?
@@ -395,7 +395,7 @@ amf3object Client::PlayerInfo()
 	obj["prestige"] = m_prestige;
 	obj["faceUrl"] = m_faceurl;
 	obj["flag"] = m_flag;
-	obj["userId"] = m_parentid;
+	obj["userId"] = masteraccountid;
 	obj["userName"] = m_playername;
 	obj["castleCount"] = m_citycount;
 	obj["medal"] = m_cents;
@@ -717,6 +717,23 @@ void Client::PlayerUpdate()
 	obj["data"] = amf3object();
 	amf3object & data = obj["data"];
 	data["playerInfo"] = PlayerInfo();
+
+	m_main->SendObject(socket, obj);
+}
+void Client::UpdateSelfArmy()
+{
+	amf3object obj = amf3object();
+	obj["cmd"] = "server.SelfArmysUpdate";
+	obj["data"] = amf3object();
+	amf3object & data = obj["data"];
+	amf3array armylist = amf3array();
+
+	for (vector<stArmyMovement*>::iterator iter = armymovement.begin(); iter != armymovement.end(); ++iter)
+	{
+		armylist.Add((*iter)->ToObject());
+	}
+
+	data["armys"] = armylist;
 
 	m_main->SendObject(socket, obj);
 }

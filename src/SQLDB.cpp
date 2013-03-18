@@ -29,14 +29,13 @@ namespace server {
 
 CSQLDB::CSQLDB(void)
 {
-	m_bInProcess = FALSE;
+	processing = FALSE;
 	m_iRows = 0;
 	m_iFields = 0;
 	myRow = 0;
 	field = 0;
-	memset(m_szQuery, 0, QUERY_BUFFER);
 	m_pQueryResult = 0;
-	xsco = 0;
+	resultarray = 0;
 	mySQL = 0;
 	failed = true;
 }
@@ -63,196 +62,148 @@ int CSQLDB::Init(const char *host, const char *user, const char *passwd, const c
 	//printf("mySQL connected successfully.\n");
 	return 1;
 }
-bool CSQLDB::Reset(void)
+my_bool CSQLDB::Reset(void)
 {
-	m_bInProcess = FALSE;
-	memset(m_szQuery, 0, QUERY_BUFFER);
+#ifndef WIN32
+		struct timespec req={0};
+		req.tv_sec = 0;
+		req.tv_nsec = 1000000L;//1ms
+#endif
+	while (processing)
+	{
+#ifdef WIN32
+		Sleep(1);
+#else
+		nanosleep(&req,NULL);
+#endif
+	}
+	m_szQuery.clear();
 	if (m_pQueryResult)
 		mysql_free_result(m_pQueryResult);
-	m_pQueryResult = NULL;
-	if (xsco)
+	m_pQueryResult = 0;
+	if (resultarray)
 	{
 		for (int i = 0; i < m_iRows; i++)
 		{
-			if (xsco[i])
+			if (resultarray[i])
 			{
-				// 				for (int j = 0; j < m_iFields; j++)
-				// 				{
-				// 					if (xsco[i][j].data)
-				// 						delete[] xsco[i][j].data;
-				// 				}
-				delete[] xsco[i];
+// 				for (int j = 0; j < m_iFields; j++)
+// 				{
+// 					if (resultarray[i][j].data)
+// 						delete[] resultarray[i][j].data;
+// 				}
+				delete[] resultarray[i];
 			}
 		}
-		delete[] xsco;
-		xsco = 0;
+		delete[] resultarray;
+		resultarray = 0;
 	}
 	if (field)
 		delete[] field;
 	field = 0;
-	return 1;
+	return true;
 }
-bool CSQLDB::Query(char * query, ...)
+my_bool CSQLDB::Query(char * query, ...)
 {
-	if (m_bInProcess)
-		Reset();
+	//mysql_ping(mySQL);
+	Reset();
+	processing = true;
 
 	va_list argptr;
 	va_start(argptr, query);
-
-	memset(m_szQuery, 0, QUERY_BUFFER);
-#ifdef __WIN32__
-	_vsprintf_s_l(m_szQuery, QUERY_BUFFER, query, NULL, argptr);
-#else
-	vsprintf(m_szQuery, query, argptr);
-#endif
+	char * newquery = 0;
+	int ret;
+	ret = vasprintf(&newquery, query, argptr);
 	va_end(argptr);
 
-
-	m_bInProcess = TRUE;
-	//strcpy_s(m_szQuery, 2048, str2);
-	mysql_query(mySQL, m_szQuery);
-	m_pQueryResult = mysql_store_result(mySQL);
-	return mysql_affected_rows(mySQL);
-	if (m_pQueryResult)
-		return TRUE;
+	if (ret == -1)
+	{
+		//failed to create query string
+		processing = false;
+		return false;
+	}
 	else
-		return FALSE;
-}
-bool CSQLDB::Insert(char * query, ...)
-{
-	mysql_ping(mySQL);
-	if (m_bInProcess)
-		Reset();
-
-	va_list argptr;
-	va_start(argptr, query);
-
-	memset(m_szQuery, 0, QUERY_BUFFER);
-#ifdef __WIN32__
-	_vsprintf_s_l(m_szQuery, QUERY_BUFFER, query, NULL, argptr);
-#else
-	vsprintf(m_szQuery, query, argptr);
-#endif
-	va_end(argptr);
-
-	m_bInProcess = TRUE;
-	//strcpy_s(m_szQuery, 2048, str2);
-	mysql_query(mySQL, m_szQuery);
-	m_pQueryResult = mysql_store_result(mySQL);
-	return (bool)mysql_affected_rows(mySQL);
-}
-bool CSQLDB::Select(char * query, ...)
-{
-	mysql_ping(mySQL);
-	if (m_bInProcess)
-		Reset();
-
-	va_list argptr;
-	va_start(argptr, query);
-
-	memset(m_szQuery, 0, QUERY_BUFFER);
-#ifdef __WIN32__
-	_vsprintf_s_l(m_szQuery, QUERY_BUFFER, query, NULL, argptr);
-#else
-	vsprintf(m_szQuery, query, argptr);
-#endif
-	va_end(argptr);
-
-
-	m_bInProcess = TRUE;
-	//strcpy_s(m_szQuery, 2048, str2);
-	mysql_query(mySQL, m_szQuery);
-	m_pQueryResult = mysql_store_result(mySQL);
-	if (!m_pQueryResult)
 	{
-		Reset();
-		return FALSE;
+		m_szQuery = newquery;
+		free(newquery);
+		mysql_query(mySQL, m_szQuery.c_str());
+		m_pQueryResult = mysql_store_result(mySQL);
+		m_szQuery.clear();
+		processing = false;
+		return mysql_affected_rows(mySQL);
 	}
-	m_iRows = (int)mysql_num_rows(m_pQueryResult);
-	m_iFields = mysql_num_fields(m_pQueryResult);
-	if (m_iRows == 0)
+}
+my_bool CSQLDB::Select(char * query, ...)
+{
+	//mysql_ping(mySQL);
+	Reset();
+	processing = true;
+
+	va_list argptr;
+	va_start(argptr, query);
+	char * newquery = 0;
+	int ret;
+	ret = vasprintf(&newquery, query, argptr);
+	va_end(argptr);
+
+	if (ret == -1)
 	{
-		Reset();
-		return FALSE;
+		//failed to create query string
+		processing = false;
+		return false;
 	}
-	return m_iRows;
+	else
+	{
+		m_szQuery = newquery;
+		free(newquery);
+		mysql_query(mySQL, m_szQuery.c_str());
+		m_pQueryResult = mysql_store_result(mySQL);
+		m_szQuery.clear();
+		if (!m_pQueryResult)
+		{
+			processing = false;
+			Reset();
+			return false;
+		}
+		m_iRows = (int)mysql_num_rows(m_pQueryResult);
+		m_iFields = mysql_num_fields(m_pQueryResult);
+		processing = false;
+		if (m_iRows == 0)
+		{
+			Reset();
+			return false;
+		}
+		return m_iRows;
+	}
 }
-bool CSQLDB::Delete(char * query, ...)
-{
-	mysql_ping(mySQL);
-	if (m_bInProcess)
-		Reset();
-
-	va_list argptr;
-	va_start(argptr, query);
-
-	memset(m_szQuery, 0, QUERY_BUFFER);
-#ifdef __WIN32__
-	_vsprintf_s_l(m_szQuery, QUERY_BUFFER, query, NULL, argptr);
-#else
-	vsprintf(m_szQuery, query, argptr);
-#endif
-	va_end(argptr);
-
-
-	m_bInProcess = TRUE;
-	//strcpy_s(m_szQuery, 2048, str2);
-	mysql_query(mySQL, m_szQuery);
-	m_pQueryResult = mysql_store_result(mySQL);
-	return (bool)mysql_affected_rows(mySQL);
-}
-bool CSQLDB::Update(char * query, ...)
-{
-	mysql_ping(mySQL);
-	if (m_bInProcess)
-		Reset();
-
-	va_list argptr;
-	va_start(argptr, query);
-
-	memset(m_szQuery, 0, QUERY_BUFFER);
-#ifdef __WIN32__
-	_vsprintf_s_l(m_szQuery, QUERY_BUFFER, query, NULL, argptr);
-#else
-	vsprintf(m_szQuery, query, argptr);
-#endif
-	va_end(argptr);
-
-
-	m_bInProcess = TRUE;
-	//strcpy_s(m_szQuery, 2048, str2);
-	mysql_query(mySQL, m_szQuery);
-	m_pQueryResult = mysql_store_result(mySQL);
-	return (bool)mysql_affected_rows(mySQL);
-}
-bool CSQLDB::Fetch(void)
+my_bool CSQLDB::Fetch(void)
 {
 	mysql_ping(mySQL);
 	if (!m_iFields || !m_iRows)
 	{
 		Reset();
-		return FALSE;
+		return false;
 	}
-	xsco = new PSQLXSCO[m_iRows];
+	if (!m_pQueryResult)
+	{
+		Log("MySQL error m_pQueryResult = null %s:%d", __FILE__, __LINE__);
+		return false;
+	}
+	resultarray = new SQLARRAY*[m_iRows];
 	for(ushort b = 0; b < m_iRows; b++)
 	{
-		xsco[b] = new SQLXSCO[m_iFields];
+		resultarray[b] = new SQLARRAY[m_iFields];
 		field = new MYSQL_FIELD*[m_iFields+1];
-		if (!m_pQueryResult)
-		{
-			Log("Mysql error m_pQueryResult = null %s:%d", __FILE__, __LINE__);
-			return false;
-		}
+
 		myRow = mysql_fetch_row(m_pQueryResult);
 		mysql_field_seek(m_pQueryResult, 0);
 		for(ushort f = 0; f < m_iFields; f++)
 		{
 			field[f] = mysql_fetch_field(m_pQueryResult);
-			xsco[b][f].type = field[f]->type;
-			xsco[b][f].fname = field[f]->name;
-			xsco[b][f].row = b;
-			//xsco[b][f].data = 0;
+			resultarray[b][f].type = field[f]->type;
+			resultarray[b][f].fname = field[f]->name;
+			resultarray[b][f].row = b;
+			//resultarray[b][f].data = 0;
 			switch (field[f]->type)
 			{
 			case MYSQL_TYPE_DECIMAL:
@@ -262,15 +213,15 @@ bool CSQLDB::Fetch(void)
 			case MYSQL_TYPE_LONGLONG:
 			case MYSQL_TYPE_INT24:
 				//number
-#ifdef __WIN32__
-				xsco[b][f].val = _atoi64(myRow[f]);
+#ifdef WIN32
+				resultarray[b][f].val = _atoi64(myRow[f]);
 #else
-				xsco[b][f].val = atoll(myRow[f]);
+				resultarray[b][f].val = atoll(myRow[f]);
 #endif
 				break;
 			case MYSQL_TYPE_FLOAT:
 			case MYSQL_TYPE_DOUBLE:
-				xsco[b][f].val = atof(myRow[f]);
+				resultarray[b][f].fval = atof(myRow[f]);
 				break;
 			case MYSQL_TYPE_TINY_BLOB:
 			case MYSQL_TYPE_MEDIUM_BLOB:
@@ -282,15 +233,15 @@ bool CSQLDB::Fetch(void)
 				if (myRow[f] == 0)
 				{
 					//null string
-					xsco[b][f].len = 0;
-					//xsco[b][f].data = 0;
+					resultarray[b][f].len = 0;
+					//resultarray[b][f].data = 0;
 				}
 				else
 				{
-					xsco[b][f].len = strlen(myRow[f]);
-					//xsco[b][f].data = new char[xsco[b][f].len+1];
-					//memset(xsco[b][f].data, 0, xsco[b][f].len+1);
-					xsco[b][f].data = (string)myRow[f];
+					resultarray[b][f].len = strlen(myRow[f]);
+					//resultarray[b][f].data = new char[resultarray[b][f].len+1];
+					//memset(resultarray[b][f].data, 0, resultarray[b][f].len+1);
+					resultarray[b][f].data = (string)myRow[f];
 				}
 				break;
 			}
@@ -298,34 +249,34 @@ bool CSQLDB::Fetch(void)
 	}
 	return TRUE;
 }
-bool CSQLDB::GetField(int row, char * fieldname, void * var, int varlimit)
+my_bool CSQLDB::GetField(int row, char * fieldname, void * var, int varlimit)
 {
 	try
 	{
-		if (xsco)
+		if (resultarray)
 			for (int i = 0; i < m_iFields; i++)
 			{
-				if (xsco[row][i].fname == fieldname)
+				if (resultarray[row][i].fname == fieldname)
 				{
-					switch(xsco[row][i].type)
+					switch(resultarray[row][i].type)
 					{
 					case MYSQL_TYPE_TINY:
 					case MYSQL_TYPE_SHORT:
-						*(short*)var = (short)xsco[row][i].val;
+						*(short*)var = (short)resultarray[row][i].val;
 						break;
 					case MYSQL_TYPE_LONG:
 					case MYSQL_TYPE_INT24:
-						*(int*)var = (int)xsco[row][i].val;
+						*(int*)var = (int)resultarray[row][i].val;
 						break;
 					case MYSQL_TYPE_FLOAT:
 					case MYSQL_TYPE_DECIMAL:
-						*(float*)var = (float)xsco[row][i].val;
+						*(float*)var = (float)resultarray[row][i].val;
 						break;
 					case MYSQL_TYPE_DOUBLE:
-						*(double*)var = (double)xsco[row][i].val;
+						*(double*)var = (double)resultarray[row][i].val;
 						break;
 					case MYSQL_TYPE_LONGLONG:
-						*(uint64_t*)var = (uint64_t)xsco[row][i].val;
+						*(uint64_t*)var = (uint64_t)resultarray[row][i].val;
 						break;
 					case MYSQL_TYPE_TINY_BLOB:
 					case MYSQL_TYPE_MEDIUM_BLOB:
@@ -333,95 +284,97 @@ bool CSQLDB::GetField(int row, char * fieldname, void * var, int varlimit)
 					case MYSQL_TYPE_BLOB:
 					case MYSQL_TYPE_VAR_STRING:
 					case MYSQL_TYPE_STRING:
-						if (xsco[row][i].len)
-#ifdef __WIN32__
-							memcpy_s(var, varlimit, (char*)xsco[row][i].data.c_str(), xsco[row][i].len);
+						if (resultarray[row][i].len)
+#ifdef WIN32
+							memcpy_s(var, varlimit, (char*)resultarray[row][i].data.c_str(), resultarray[row][i].len);
 #else
-							memcpy(var, (char*)xsco[row][i].data.c_str(), xsco[row][i].len);
+							if (resultarray[row][i].len > varlimit)
+								memcpy(var, (char*)resultarray[row][i].data.c_str(), varlimit);
+							else
+								memcpy(var, (char*)resultarray[row][i].data.c_str(), resultarray[row][i].len);
+
 #endif
 						break;
 					}
-					return TRUE;
+					return true;
 				}
 			}
-			return FALSE;
+			return false;
 	}
 	catch(...)
 	{
-#ifdef __WIN32__
-		::MessageBoxA(NULL, "Error in GetField(), possible memory corruption. Please debug.", "ERROR", MB_OK);
-#endif
-		return FALSE;
+		Log("Error in GetField(), possible memory corruption. Please debug.");
+		return false;
 	}
 }
 char * CSQLDB::GetString(int row, char * fieldname)
 {
-	if (xsco)
+	if (resultarray)
 		for (int i = 0; i < m_iFields; i++)
 		{
-			if (xsco[row][i].fname == fieldname)
+			if (resultarray[row][i].fname == fieldname)
 			{
-				return (char*)xsco[row][i].data.c_str();
+				return (char*)resultarray[row][i].data.c_str();
 			}
 		}
 		return FALSE;
 }
 int32_t CSQLDB::GetInt(int row, char * fieldname)
 {
-	if (xsco)
+	if (resultarray)
 		for (int i = 0; i < m_iFields; i++)
 		{
-			if (xsco[row][i].fname == fieldname)
+			if (resultarray[row][i].fname == fieldname)
 			{
-				return (int)xsco[row][i].val;
+				return (int)resultarray[row][i].val;
 			}
 		}
 		return FALSE;
 }
 uint32_t CSQLDB::GetUInt(int row, char * fieldname)
 {
-	if (xsco)
+	if (resultarray)
 		for (int i = 0; i < m_iFields; i++)
 		{
-			if (xsco[row][i].fname == fieldname)
+			if (resultarray[row][i].fname == fieldname)
 			{
-				return (int)xsco[row][i].uval;
+				return (int)resultarray[row][i].uval;
 			}
 		}
 		return FALSE;
 }
 int64_t CSQLDB::GetInt64(int row, char * fieldname)
 {
-	if (xsco)
+	if (resultarray)
 		for (int i = 0; i < m_iFields; i++)
 		{
-			if (xsco[row][i].fname == fieldname)
+			if (resultarray[row][i].fname == fieldname)
 			{
-				return xsco[row][i].val;
+				return resultarray[row][i].val;
 			}
 		}
 		return FALSE;
 }
 uint64_t CSQLDB::GetUInt64(int row, char * fieldname)
 {
-	if (xsco)
+	if (resultarray)
 		for (int i = 0; i < m_iFields; i++)
 		{
-			if (xsco[row][i].fname == fieldname)
+			if (resultarray[row][i].fname == fieldname)
 			{
-				return xsco[row][i].uval;
+				return resultarray[row][i].uval;
 			}
 		}
 		return FALSE;
 }
 double CSQLDB::GetDouble(int row, char * fieldname)
 {
-	if (xsco)
+	if (resultarray)
 		for (int i = 0; i < m_iFields; i++)
 		{
-			if (xsco[row][i].fname == fieldname)
+			if (resultarray[row][i].fname == fieldname)
 			{
-				return xsco[row][i].val;
+				return resultarray[row][i].fval;
 			}
 		}
 		return FALSE;

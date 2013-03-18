@@ -38,7 +38,8 @@ public:
 	~Tile(void);
 
 
-	amf3object * ToObject();
+	amf3object ToObject();
+	string GetName();
 
 	City * m_city;
 	char m_castleicon;

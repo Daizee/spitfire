@@ -446,7 +446,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			char * userName = data["userName"];
 			int zone = data["zone"];
 
-			if (client->m_accountid > 0)
+			if ((client->m_accountid > 0) && (client->m_citycount > 0))
 			{
 				// already has a city
 				amf3object obj;
@@ -478,21 +478,24 @@ void request_handler::handle_request(const request& req, reply& rep)
 				return;
 			}
 
-			gserver->msql->Select("SELECT * FROM `accounts` WHERE `username`='%s';", userName);
-			gserver->msql->Fetch();
-			if (gserver->msql->m_iRows > 0)
+			if (client->m_accountid == 0)
 			{
-				//player name exists
-				amf3object obj;
-				obj["cmd"] = "common.createNewPlayer";
-				obj["data"] = amf3object();
-				amf3object & data = obj["data"];
-				data["packageId"] = 0.0f;
-				data["ok"] = -88;
-				data["errorMsg"] = "Player name taken";
+				gserver->msql->Select("SELECT * FROM `accounts` WHERE `username`='%s';", userName);
+				gserver->msql->Fetch();
+				if (gserver->msql->m_iRows > 0)
+				{
+					//player name exists
+					amf3object obj;
+					obj["cmd"] = "common.createNewPlayer";
+					obj["data"] = amf3object();
+					amf3object & data = obj["data"];
+					data["packageId"] = 0.0f;
+					data["ok"] = -88;
+					data["errorMsg"] = "Player name taken";
 
-				gserver->SendObject(c, obj);
-				return;
+					gserver->SendObject(c, obj);
+					return;
+				}
 			}
 			else
 			{
@@ -523,7 +526,6 @@ void request_handler::handle_request(const request& req, reply& rep)
 						return;
 					}
 
-
 					char user[50];
 					char flag2[50];
 					char faceUrl2[50];
@@ -532,20 +534,50 @@ void request_handler::handle_request(const request& req, reply& rep)
 					mysql_real_escape_string(gserver->accounts->mySQL, flag2, flag, strlen(flag)<50?strlen(flag):50);
 					mysql_real_escape_string(gserver->accounts->mySQL, faceUrl2, faceUrl, strlen(faceUrl)<50?strlen(faceUrl):50);
 					mysql_real_escape_string(gserver->accounts->mySQL, castlename2, castleName, strlen(castleName)<50?strlen(castleName):50);
-					gserver->msql->Insert("INSERT INTO `accounts` (`parentid`, `username`, `lastlogin`, `creation`, `ipaddress`, `status`, `reason`, `sex`, `flag`, `faceurl`) \
-								 VALUES (%d, '%s', "XI64", "XI64", '%s', %d, '%s', %d, '%s', '%s');",
-								 client->m_parentid, user, unixtime(), unixtime(), client->m_ipaddress, 0, "", sex, flag, faceUrl2);
+					if (client->m_accountid == 0)
+					{
+//  						gserver->msql->Query("INSERT INTO `accounts` (`parentid`, `username`, `lastlogin`, `creation`, `ipaddress`, `status`, `reason`, `sex`, `flag`, `faceurl`) \
+//  								 VALUES (%d, '%s', "XI64", "XI64", '%s', %d, '%s', %d, '%s', '%s');",
+//  								 client->masteraccountid, user, unixtime(), unixtime(), client->m_ipaddress, 0, "", sex, flag, faceUrl2);
 
-					client->m_accountid = (int32_t)mysql_insert_id(gserver->msql->mySQL);
+						int status = 0;
+						gserver->bindaccountcreation[0].buffer = &client->masteraccountid;
+						gserver->bindaccountcreation[1].buffer = &user;
+						gserver->bindaccountcreation[2].buffer = &timestamp;
+						gserver->bindaccountcreation[3].buffer = &timestamp;
+						gserver->bindaccountcreation[4].buffer = &client->m_ipaddress;
+						gserver->bindaccountcreation[5].buffer = &status;
+						gserver->bindaccountcreation[6].buffer = "";
+						gserver->bindaccountcreation[7].buffer = &sex;
+						gserver->bindaccountcreation[8].buffer = &flag;
+						gserver->bindaccountcreation[9].buffer = &faceUrl2;
+						mysql_stmt_execute(gserver->accountcreation);
+						client->m_accountid = mysql_stmt_insert_id(gserver->accountcreation);
+						//client->m_accountid = (int32_t)mysql_insert_id(gserver->msql->mySQL);
+					}
 
 					string temp = "50,10.000000,100.000000,100.000000,100.000000,100.000000,90,0,";
 					char temp2[200];
-					sprintf_s(temp2, 200, DBL, unixtime());
+					sprintf_s(temp2, 200, DBL, (double)unixtime());
 					temp += temp2;
 
-					gserver->msql->Insert("INSERT INTO `cities` (`accountid`,`misc`,`fieldid`,`name`,`buildings`,`gold`,`food`,`wood`,`iron`,`stone`,`creation`) \
+					if (!gserver->msql->Query("INSERT INTO `cities` (`accountid`,`misc`,`fieldid`,`name`,`buildings`,`gold`,`food`,`wood`,`iron`,`stone`,`creation`) \
 								 VALUES (%d, '%s',%d, '%s', '%s',100000,100000,100000,100000,100000,"DBL");",
-								 client->m_accountid, (char*)temp.c_str(), randomid, castleName, "31,1,-1,0,0.000000,0.000000", unixtime());
+								 client->m_accountid, (char*)temp.c_str(), randomid, castleName, "31,1,-1,0,0.000000,0.000000", (double)unixtime()))
+					{
+						//error making city
+						Log("Error. Unable to insert new city row.");
+						amf3object obj;
+						obj["cmd"] = "common.createNewPlayer";
+						obj["data"] = amf3object();
+						amf3object & data = obj["data"];
+						data["packageId"] = 0.0f;
+						data["ok"] = -25;
+						data["errorMsg"] = "Error with account creation.";
+
+						gserver->SendObject(c, obj);
+						return;
+					}
 
 					client->m_playername = user;
 					client->m_flag = flag2;
@@ -2077,7 +2109,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 					temp["prestige"] = client->m_prestige;
 					temp["faceUrl"] = client->m_faceurl;
 					temp["flag"] = client->m_flag;
-					temp["userId"] = client->m_parentid;
+					temp["userId"] = client->masteraccountid;
 					temp["userName"] = client->m_playername;
 					temp["castleCount"] = client->m_citycount;
 					temp["titleId"] = client->m_title;
@@ -3569,7 +3601,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 				temp["prestige"] = iter->client->m_prestige;
 				temp["faceUrl"] = iter->client->m_faceurl;
 				temp["flag"] = iter->client->m_flag;
-				temp["userId"] = iter->client->m_parentid;
+				temp["userId"] = iter->client->masteraccountid;
 				temp["userName"] = iter->client->m_playername;
 				temp["castleCount"] = iter->client->m_citycount;
 				temp["titleId"] = iter->client->m_title;
@@ -5567,7 +5599,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 			if (rally < pcity->armymovement.size())
 			{
 				//can't send any more armies out
-				rep.objects.push_back(gserver->CreateError(-51, "No more troops are allowed to sent at current level of Rally Spot. Please upgrade the Rally Spot first."));
+				rep.objects.push_back(gserver->CreateError("army.newArmy", -51, "No more troops are allowed to sent at current level of Rally Spot. Please upgrade the Rally Spot first."));
 				return;
 			}
 
@@ -5575,7 +5607,8 @@ void request_handler::handle_request(const request& req, reply& rep)
 			{
 				if (client->Beginner())
 				{
-					rep.objects.push_back(gserver->CreateError(-69, "Beginner's Protection will automatically expired 7 days after registration or Town Hall reaches level 5."));
+					//gserver->SendObject(client->socket, gserver->CreateError("army.newArmy", -69, "Beginner's Protection will automatically expired 7 days after registration or Town Hall reaches level 5."));
+					rep.objects.push_back(gserver->CreateError("army.newArmy", -69, "Beginner's Protection will automatically expired 7 days after registration or Town Hall reaches level 5."));
 					return;
 				}
 				// check if valid enemy
@@ -5587,7 +5620,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 					{
 						//error occurred
 						amf3object obj3;
-						obj3["cmd"] = "server.newArmy";
+						obj3["cmd"] = "army.newArmy";
 						obj3["data"] = amf3object();
 						amf3object & data3 = obj3["data"];
 						data3["errorMsg"] = "Problem with internal mapdata. Please report this bug.";
@@ -5601,14 +5634,14 @@ void request_handler::handle_request(const request& req, reply& rep)
 					if (oclient->Beginner() || relation == DEF_SELFRELATION || relation == DEF_ALLIANCE || relation == DEF_ALLY)
 					{
 						//attacking beginner, self, own alliance, or allied alliance. reject attack
-						rep.objects.push_back(gserver->CreateError(-13, "You can't perform this operation against this target."));
+						rep.objects.push_back(gserver->CreateError("army.newArmy", -13, "You can't perform this operation against this target."));
 						return;
 					}
 					//you CAN attack this target. set everything up to pass to timers.
 					if (!pcity->HasTroops(troops))
 					{
 						//not enough troops
-						rep.objects.push_back(gserver->CreateError(-29, "You have insufficient troops."));
+						rep.objects.push_back(gserver->CreateError("army.newArmy", -29, "You have insufficient troops."));
 						return;
 					}
 					//you have enough troops, valid target, gogogo
@@ -5618,41 +5651,59 @@ void request_handler::handle_request(const request& req, reply& rep)
 					if (hero == 0)
 					{
 						//hero doesn't exist
-						rep.objects.push_back(gserver->CreateError(-80, "Hero does not exist."));
+						rep.objects.push_back(gserver->CreateError("army.newArmy", -80, "Hero does not exist."));
 						return;
 					}
 					if (hero->m_status != DEF_HEROIDLE)
 					{
 						//hero busy
-						rep.objects.push_back(gserver->CreateError(-80, "Status of this hero is not Idle."));
+						rep.objects.push_back(gserver->CreateError("army.newArmy", -80, "Status of this hero is not Idle."));
 						return;
 					}
 
 					stArmyMovement * am = new stArmyMovement;
 
 					stTimedEvent te;
-					am->armyid = gserver->armycounter++;
-					am->hero = hero;
-					am->resources += resources;
-					am->troops += troops;
 					am->city = pcity;
 					am->client = client;
+
+					am->hero = hero;
+					am->heroname = hero->m_name;
+					am->direction = 3;//changes?
+					am->resources += resources;
+					am->startposname = pcity->m_cityname;
+					am->king = client->m_playername;
+					am->troops += troops;
+					am->starttime = 0;//unixtime(); ?
+					am->armyid = gserver->armycounter++;
+					am->reachtime = 0;
+					am->herolevel = hero->m_level;
+					am->resttime = resttime;
+					am->missiontype = missiontype;
+					am->startfieldid = pcity->m_tileid;
+					am->targetfieldid = targettile;
+					am->targetposname = gserver->m_map->GetTileFromID(targettile)->GetName();
+
 					te.data = am;
 					te.type = DEF_TIMEDARMY;
 
 					gserver->AddTimedEvent(te);
 
-					pcity->armymovement.push_back(am);
+					client->armymovement.push_back(am);
 
 					//timer made, remove troops from city
 					pcity->m_troops -= troops;
+					hero->movement = am;
+					pcity->HeroUpdate(hero, 2);
 					pcity->TroopUpdate();
+					pcity->ResourceUpdate();
+					client->UpdateSelfArmy();
 				}
 			}
 
 
 
-			Alliance * all1 = client->GetAlliance();
+			//Alliance * all1 = client->GetAlliance();
 
 
 // 			["data"] Type: Object - Value: Object
@@ -5727,7 +5778,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 		gserver->accounts->Fetch();
 		if (gserver->accounts->GetInt(0, "a") <= 0)
 		{
-			gserver->accounts->Insert("INSERT INTO `account` (`name`, `email`, `ip`, `lastlogin`, `creation`, `password`, `status`, `reason`) \
+			gserver->accounts->Query("INSERT INTO `account` (`name`, `email`, `ip`, `lastlogin`, `creation`, `password`, `status`, `reason`) \
 								VALUES ('null', '%s', '', "XI64", "XI64", '%s', 0, '');",
 								newuser, unixtime(), unixtime(), newpass);
 
@@ -5755,13 +5806,13 @@ void request_handler::handle_request(const request& req, reply& rep)
 		}
 		else
 		{
-			int parentid = gserver->accounts->GetInt(0, "id");
-			client = gserver->GetClientByParent(parentid);
+			int masteraccountid = gserver->accounts->GetInt(0, "id");
+			client = gserver->GetClientByParent(masteraccountid);
 
 			bool banned = false;
 
 			//are they banned? if so, globally or for this server?
-			gserver->msql->Select("SELECT * FROM `accounts` WHERE `parentid`='%d';", parentid);
+			gserver->msql->Select("SELECT * FROM `accounts` WHERE `parentid`='%d';", masteraccountid);
 			gserver->msql->Fetch();
 
 			if (gserver->accounts->GetInt(0, "status") == -99)
@@ -5790,12 +5841,11 @@ void request_handler::handle_request(const request& req, reply& rep)
 				return;
 			}
 
-			//LOCK(M_CLIENTLIST);
 			//client = gserver->GetClientByParent(parentid);
 			if (client == 0)
 			{
 				client = gserver->NewClient();
-				client->m_parentid = parentid;
+				client->masteraccountid = masteraccountid;
 				client->m_socknum = req.connection->uid;
 				client->socket = req.connection;
 				req.connection->client_ = client;
@@ -5810,7 +5860,6 @@ void request_handler::handle_request(const request& req, reply& rep)
 
 			if (client == 0)
 			{
-				//UNLOCK(M_CLIENTLIST);
 				//error creating client object
 				Log("Error creating client object @ %s:%d", __FILE__, __LINE__);
 				amf3object obj;
@@ -5832,11 +5881,10 @@ void request_handler::handle_request(const request& req, reply& rep)
 			gserver->msql->Reset();
 
 			//account exists
-			gserver->msql->Select("SELECT * FROM `accounts` WHERE `parentid`='%d';", parentid);
+			gserver->msql->Select("SELECT * FROM `accounts` WHERE `parentid`='%d';", masteraccountid);
 			gserver->msql->Fetch();
 			if (gserver->msql->m_iRows <= 0)
 			{
-				//UNLOCK(M_CLIENTLIST);
 				//does not have an account on server
 				amf3object obj;
 				obj["cmd"] = "server.LoginResponse";
@@ -5864,10 +5912,7 @@ void request_handler::handle_request(const request& req, reply& rep)
 				gserver->msql->Fetch();
 				if (gserver->msql->m_iRows <= 0)
 				{
-					//UNLOCK(M_CLIENTLIST);
-					//does not have any cities on server - theoretically should never happen. if it does, delete the account row.
-					//may happen if a new account is attempted to be made yet a city is not made for it or if idle city deletion happens but account is not removed
-					gserver->msql->Delete("DELETE FROM `accounts` WHERE `parentid`=%d", parentid);
+					//does not have any cities on server but did have an account - this only happens if you try to "restart" your account. it saves the account info while deleting your cities
 					amf3object obj;
 					obj["cmd"] = "server.LoginResponse";
 					obj["data"] = amf3object();

@@ -61,6 +61,7 @@ public:
 	int16_t m_stratagemadded;
 	int16_t m_stratagembuffadded;
 	double m_upgradeexp;
+	stArmyMovement * movement;
 
 	inline int16_t GetManagement()
 	{

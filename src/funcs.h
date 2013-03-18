@@ -162,8 +162,8 @@ uint64_t unixtime();
 	return; \
 }
 // 
-// #define _HAS_ITERATOR_DEBUGGING 0
-// #define _ITERATOR_DEBUG_LEVEL 0
+#define _HAS_ITERATOR_DEBUGGING 1
+#define _ITERATOR_DEBUG_LEVEL 2
 
 
 
@@ -226,62 +226,26 @@ extern void Log( char * str, ...);
 extern void DLog( char * fmt, char * file, int line, char * str, ...);
 extern void a_swap(unsigned char * a, unsigned char * b);
 extern void ByteSwap5(unsigned char * b, int n);
-// 
-// #define SFLOGGING 5
-// 
-// #define SFERROR(a) Log("Fatal error! File: %s Line: %d Error: %s", __FILE__, __LINE__, (char*)a)
-// #if SFLOGGING>=5
-// #define SFLOGFINEST(a) Log("\033[36m%s:%d - %s\033[0m", __FILE__, __LINE__, (char*)a)
-// #else
-// #define SFLOGFINEST(a)
-// #endif
-// 
-// #if SFLOGGING>=4
-// #define SFLOGINFO(a) Log("INFO: %s:%d - %s", __FILE__, __LINE__, (char*)a)
-// #else
-// #define SFLOGFINEST(a)
-// #endif
-// 
-// #if SFLOGGING>=3
-// #define SFLOGWARNING(a) Log("WARNING: %s:%d - %s", __FILE__, __LINE__, (char*)a)
-// #else
-// #define SFLOGFINEST(a)
-// #endif
-// 
-// #if SFLOGGING>=2
-// #define SFLOGERROR(a) Log("ERROR: %s:%d - %s", __FILE__, __LINE__, (char*)a)
-// #else
-// #define SFLOGFINEST(a)
-// #endif
-// 
-// #if SFLOGGING>=1
-// #define SFLOGFATAL(a) Log("FATAL: %s:%d - %s", __FILE__, __LINE__, (char*)a)
-// #else
-// #define SFLOGFINEST(a)
-// #endif
-// 
-// 
-// 
-// #define SFLOG(a, ...) DLog("DLog: %s:%d - %s", __FILE__, __LINE__, (char*)a, __VA_ARGS__ )
 
+#ifdef WIN32
 
-// #define DEF_STATE1 "FRIESLAND"
-// #define DEF_STATE2 "SAXONY"
-// #define DEF_STATE3 "NORTH MARCH"
-// #define DEF_STATE4 "BOHEMIA"
-// #define DEF_STATE5 "LOWER LORRAINE"
-// #define DEF_STATE6 "FRANCONIA"
-// #define DEF_STATE7 "THURINGIA"
-// #define DEF_STATE8 "MORAVIA"
-// #define DEF_STATE9 "UPPER LORRAINE"
-// #define DEF_STATE10 "SWABIA"
-// #define DEF_STATE11 "BAVARIA"
-// #define DEF_STATE12 "CARINTHIA"
-// #define DEF_STATE13 "BURGUNDY"
-// #define DEF_STATE14 "LOMBARDY"
-// #define DEF_STATE15 "TUSCANY"
-// #define DEF_STATE16 "ROMAGNA"
+#ifndef VA_COPY
+# ifdef HAVE_VA_COPY
+#  define VA_COPY(dest, src) va_copy(dest, src)
+# else
+#  ifdef HAVE___VA_COPY
+#   define VA_COPY(dest, src) __va_copy(dest, src)
+#  else
+#   define VA_COPY(dest, src) (dest) = (src)
+#  endif
+# endif
+#endif
 
+#define INIT_SZ 256
+
+extern int vasprintf(char **str, const char *fmt, va_list ap);
+extern int asprintf(char **str, const char *fmt, ...);
+#endif
 
 #define DEF_NORMAL 0
 #define DEF_PEACETIME 1
@@ -419,6 +383,16 @@ struct stResources
 		this->iron += b.iron;
 		return *this;
 	}
+	amf3object ToObject()
+	{
+		amf3object obj = amf3object();
+		obj["wood"] = wood;
+		obj["food"] = food;
+		obj["stone"] = stone;
+		obj["gold"] = gold;
+		obj["iron"] = iron;
+		return obj;
+	}
 }; // 40 bytes
 struct stForts
 {
@@ -546,6 +520,23 @@ struct stTroops
 		this->catapult += b.catapult;
 		return *this;
 	}
+	amf3object ToObject()
+	{
+		amf3object obj = amf3object();
+		obj["peasants"] = worker;
+		obj["catapult"] = catapult;
+		obj["archer"] = archer;
+		obj["ballista"] = ballista;
+		obj["scouter"] = scout;
+		obj["carriage"] = transporter;
+		obj["heavyCavalry"] = cataphract;
+		obj["militia"] = warrior;
+		obj["lightCavalry"] = cavalry;
+		obj["swordsmen"] = sword;
+		obj["pikemen"] = pike;
+		obj["batteringRam"] = ram;
+		return obj;
+	}
 };
 struct stAlliance
 {
@@ -562,12 +553,44 @@ struct stAlliance
 struct stArmyMovement
 {
 	stArmyMovement() {	memset(&resources, 0, sizeof(stResources)); memset(&troops, 0, sizeof(stTroops)); }
-	stTroops troops;
-	stResources resources;
-	int64_t armyid;
 	Hero * hero;
+	string heroname;
+	int16_t direction;
+	stResources resources;
+	string startposname;
+	string king;
+	stTroops troops;
+	uint64_t starttime;
+	uint64_t armyid;
+	uint64_t reachtime;
+	uint32_t herolevel;
+	uint64_t resttime;
+	uint32_t missiontype;
+	uint32_t startfieldid;
+	uint32_t targetfieldid;
+	string targetposname;
 	City * city;
 	Client * client;
+	amf3object ToObject()
+	{
+		amf3object obj = amf3object();
+		obj["hero"] = heroname;
+		obj["direction"] = direction;
+		obj["resource"] = resources.ToObject();
+		obj["startPosName"] = startposname;
+		obj["king"] = king;
+		obj["troop"] = troops.ToObject();
+		obj["startTime"] = starttime;
+		obj["armyId"] = armyid;
+		obj["reachTime"] = reachtime;
+		obj["heroLevel"] = herolevel;
+		obj["restTime"] = resttime;
+		obj["missionType"] = missiontype;
+		obj["startFieldId"] = startfieldid;
+		obj["targetFieldId"] = targetfieldid;
+		obj["targetPosName"] = targetposname;
+		return obj;
+	}
 };
 struct stTrainingAction
 {
