@@ -1281,7 +1281,7 @@ void PlayerCity::FortUpdate()
 	m_client->m_main->SendObject(m_client->socket, obj);
 }
 
-void PlayerCity::RecacluateCityStats()
+void PlayerCity::RecalculateCityStats()
 {
 	int direction;
 	int targetpopulation = ( m_maxpopulation * ( double( ( ( m_loyalty + m_grievance ) > 100 ) ? 100 : ( m_loyalty + m_grievance ) ) / 100 ) );

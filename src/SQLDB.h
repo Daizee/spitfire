@@ -21,8 +21,6 @@
 
 #pragma once
 
-//#include "GameServer.h"
-
 #ifdef WIN32
 #include <my_global.h>
 #include <my_sys.h>
@@ -37,7 +35,7 @@ namespace spitfire {
 namespace server {
 
 
-typedef struct tagXSCO
+typedef struct
 {
 	string   data;
 	int      len;
@@ -50,9 +48,8 @@ typedef struct tagXSCO
 	string   fname;
 	int      field;
 	uint64_t row;
-} SQLXSCO, *PSQLXSCO, **PPSQLXSCO;
+} SQLARRAY;
 
-#define QUERY_BUFFER 20480
 class CSQLDB
 {
 public:
@@ -60,28 +57,25 @@ public:
 	~CSQLDB(void);
 	int Init(const char *host, const char *user, const char *passwd, const char *db);
 	MYSQL * mySQL;
-	bool Query(char * query, ...);
-	bool Insert(char * query, ...);
-	bool Select(char * query, ...);
-	bool Delete(char * query, ...);
-	bool Update(char * query, ...);
-	bool Fetch(void);
-	bool Reset(void);
-	bool GetField(int row, char * fieldname, void * var, int varlimit = 0);
+	my_bool Query(char * query, ...);
+	my_bool Select(char * query, ...);
+	my_bool Fetch(void);
+	my_bool Reset(void);
+	my_bool GetField(int row, char * fieldname, void * var, int varlimit = 0);
 	char * GetString(int row, char * fieldname);
 	int32_t GetInt(int row, char * fieldname);
 	uint32_t GetUInt(int row, char * fieldname);
 	int64_t GetInt64(int row, char * fieldname);
 	uint64_t GetUInt64(int row, char * fieldname);
 	double GetDouble(int row, char * fieldname);
-	bool m_bInProcess;
+	my_bool processing;
 	st_mysql_res* m_pQueryResult;
-	char m_szQuery [QUERY_BUFFER];
+	string m_szQuery;
 	int m_iRows, m_iFields;
 	MYSQL_FIELD  **	field;
 	MYSQL_ROW	   myRow;
-	PPSQLXSCO	xsco;
-	bool failed;
+	SQLARRAY	** resultarray;
+	my_bool failed;
 };
 
 }

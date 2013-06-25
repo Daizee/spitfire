@@ -33,6 +33,7 @@ Hero::Hero()
 		= m_upgradeexp = 0;
 	m_name = "";
 	m_logourl = "";
+	movement = 0;
 }
 
 Hero::~Hero()

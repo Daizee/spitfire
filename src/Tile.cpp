@@ -49,11 +49,10 @@ Tile::~Tile(void)
 }
 
 
-amf3object * Tile::ToObject()
+amf3object Tile::ToObject()
 {
 	PlayerCity * city = (PlayerCity*)m_city;
-	amf3object * obj2 = new amf3object();
-	amf3object & obj = *obj2;
+	amf3object obj = amf3object();
 	obj["id"] = m_id;
 	obj["name"] = city->m_cityname;
 	obj["npc"] = m_npc;
@@ -63,7 +62,33 @@ amf3object * Tile::ToObject()
 	obj["userName"] = city->m_client->m_playername;
 	obj["flag"] = city->m_client->m_flag;
 	obj["allianceName"] = city->m_client->m_alliancename;
-	return obj2;
+	return obj;
+}
+
+string Tile::GetName()
+{
+	if (m_npc)
+	switch (m_type)
+	{
+	case FOREST:
+		return "Forest";
+	case DESERT:
+		return "Desert";
+	case HILL:
+		return "Hill";
+	case SWAMP:
+		return "Swamp";
+	case GRASS:
+		return "Grass";
+	case LAKE:
+		return "Lake";
+	case FLAT:
+		return "Flat";
+	case CASTLE:
+		return (m_city)?m_city->m_cityname:"Invalid City";
+	case NPC:
+		return "Barbarian's City";
+	}
 }
 
 }

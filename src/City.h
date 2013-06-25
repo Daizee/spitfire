@@ -181,7 +181,7 @@ public:
 
 	void CalculateStats();
 	void CalculateResources();
-	void RecacluateCityStats();
+	void RecalculateCityStats();
 	void CalculateResourceStats();
 
 
