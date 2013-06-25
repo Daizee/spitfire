@@ -23,7 +23,6 @@
 #include <boost/bind.hpp>
 #include <signal.h>
 #include "connection.hpp"
-#include <sys/timeb.h>
 
 #define DEF_NOMAPDATA
 
@@ -49,17 +48,7 @@ extern size_t ci_find(const string& str1, const string& str2);
 extern bool ci_equal(char ch1, char ch2);
 extern server * gserver;
 
-uint64_t unixtime()
-{
-#ifdef WIN32
-	struct __timeb64 tstruct;
-	_ftime64_s( &tstruct );
-#else
-	struct timeb tstruct;
-	ftime( &tstruct );
-#endif
-	return tstruct.millitm + tstruct.time*1000;
-}
+
 
 server::server()
   : io_service_(),
@@ -667,9 +656,9 @@ void server::run()
 
 						if (client->m_research[a].castleid != 0)
 						{
-							server::stResearchAction * ra = new server::stResearchAction;
+							stResearchAction * ra = new stResearchAction;
 
-							server::stTimedEvent te;
+							stTimedEvent te;
 							ra->city = pcity;
 							ra->client = pcity->m_client;
 							ra->researchid = a;
@@ -884,7 +873,7 @@ void * TimerThread(void *ch)
 	uint64_t t100msectimer;
 	uint64_t ltime;
 
-	list<server::stTimedEvent>::iterator iter;
+	list<stTimedEvent>::iterator iter;
 
 	t1htimer = t30mintimer = t6mintimer = t5mintimer = t3mintimer = t1mintimer = t5sectimer = t1sectimer = t100msectimer = unixtime();
 
@@ -915,10 +904,10 @@ void * TimerThread(void *ch)
 						for (int j = 0; j < client->m_city.size(); ++j)
 						{
 							PlayerCity * city = client->m_city[j];
-							vector<PlayerCity::stTroopQueue>::iterator tqiter;
+							vector<stTroopQueue>::iterator tqiter;
 							for (tqiter = client->m_city[j]->m_troopqueue.begin(); tqiter != client->m_city[j]->m_troopqueue.end(); )
 							{
-								list<PlayerCity::stTroopTrain>::iterator iter;
+								list<stTroopTrain>::iterator iter;
 								iter = tqiter->queue.begin();
 								if (iter != tqiter->queue.end() && iter->endtime <= ltime)
 								{
@@ -960,7 +949,7 @@ void * TimerThread(void *ch)
 					if (gserver->buildinglist.size() > 0)
 						for (iter = gserver->buildinglist.begin(); iter != gserver->buildinglist.end(); )
 						{
-							server::stBuildingAction * ba = (server::stBuildingAction *)iter->data;
+							stBuildingAction * ba = (stBuildingAction *)iter->data;
 							Client * client = ba->client;
 							PlayerCity * city = ba->city;
 							stBuilding * bldg = ba->city->GetBuilding(ba->positionid);
@@ -1070,7 +1059,7 @@ void * TimerThread(void *ch)
 						if (gserver->researchlist.size() > 0)
 							for (iter = gserver->researchlist.begin(); iter != gserver->researchlist.end(); )
 							{
-								server::stResearchAction * ra = (server::stResearchAction *)iter->data;
+								stResearchAction * ra = (stResearchAction *)iter->data;
 								Client * client = ra->client;
 								PlayerCity * city = ra->city;
 								if (ra->researchid != 0)
@@ -1382,7 +1371,7 @@ void * SaveData(void *ch)
 	 WHERE `id` IN (0,1,2);
 	 **/
 
-#ifndef DEF_NOMAPDATA
+#ifdef DEF_NOMAPDATA
 
 	try
 	{
@@ -1565,7 +1554,7 @@ void * SaveData(void *ch)
 
 			memset(temp1, 0, 1000);
 
-			Client::stResearch * rsrch;
+			stResearch * rsrch;
 			for (int j = 0; j < 25; ++j)
 			{
 				if (j != 0)
@@ -1790,7 +1779,7 @@ void * SaveData(void *ch)
 
 // Server code
 
-server::stItem * server::GetItem(string name)
+stItemConfig * server::GetItem(string name)
 {
 	for (int i = 0; i < DEF_MAXITEMS; ++i)
 	{
@@ -2394,7 +2383,7 @@ void server::SortCastles()
 		iter->rank = num++;
 	}
 }
-int32_t  server::GetClientID(int32_t accountid)
+int32_t  server::GetClientIndex(int32_t accountid)
 {
 	for (int i = 0; i < maxplayersloaded; ++i)
 	{
@@ -2404,7 +2393,19 @@ int32_t  server::GetClientID(int32_t accountid)
 	}
 	return -1;
 }
-Client * server::GetClient(int accountid)
+Client * server::GetClientByCastle(int32_t castleid)
+{
+	for (int i = 0; i < maxplayersloaded; ++i)
+	{
+		if (m_clients[i])
+		{
+			if (m_clients[i]->GetCity(castleid) != 0)
+				return m_clients[i];
+		}
+	}
+	return 0;
+}
+Client * server::GetClient(int32_t accountid)
 {
 	for (int i = 0; i < maxplayersloaded; ++i)
 	{

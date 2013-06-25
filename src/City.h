@@ -22,6 +22,7 @@
 #pragma once
 
 #include <string>
+#include "funcs.h"
 #include "amf3.h"
 #include "Hero.h"
 //#include "defines.h"
@@ -39,106 +40,7 @@ char * GetBuildingName(int id);
 // #pragma pack(1)     /* set alignment to 1 byte boundary */
 // 
 
-// BUILDING IDS
 
-#define B_COTTAGE 1
-#define B_BARRACKS 2
-#define B_WAREHOUSE 3
-#define B_SAWMILL 4
-#define B_STONEMINE 5
-#define B_IRONMINE 6
-#define B_FARM 7
-#define B_STABLE 20
-#define B_INN 21
-#define B_FORGE 22
-#define B_MARKETPLACE 23
-#define B_RELIEFSTATION 24
-#define B_ACADEMY 25
-#define B_WORKSHOP 26
-#define B_FEASTINGHALL 27
-#define B_EMBASSY 28
-#define B_RALLYSPOT 29
-#define B_BEACONTOWER 30
-#define B_TOWNHALL 31
-#define B_WALLS 32
-
-#define TR_WORKER 2
-#define TR_WARRIOR 3
-#define TR_SCOUT 4
-#define TR_PIKE 5
-#define TR_SWORDS 6
-#define TR_ARCHER 7
-#define TR_TRANSPORTER 8
-#define TR_CAVALRY 9
-#define TR_CATAPHRACT 10
-#define TR_BALLISTA 11
-#define TR_RAM 12
-#define TR_CATAPULT 13
-
-#define TR_TRAP 14
-#define TR_ABATIS 15
-#define TR_ARCHERTOWER 16
-#define TR_ROLLINGLOG 17
-#define TR_TREBUCHET 18
-
-struct stResources
-{
-	double food;
-	double stone;
-	double iron;
-	double wood;
-	double gold;
-	stResources& operator -=(const stResources& b)
-	{
-		this->food -= b.food;
-		this->stone -= b.stone;
-		this->iron -= b.iron;
-		this->wood -= b.wood;
-		this->gold -= b.gold;
-		return *this;
-	}
-	stResources& operator +=(const stResources& b)
-	{
-		this->food += b.food;
-		this->stone += b.stone;
-		this->iron += b.iron;
-		this->wood += b.wood;
-		this->gold += b.gold;
-		return *this;
-	}
-}; // 40 bytes
-struct stForts
-{
-	int32_t traps;
-	int32_t abatis;
-	int32_t towers;
-	int32_t logs;
-	int32_t trebs;
-}; // 20 bytes
-struct stBuilding
-{
-	int16_t id;
-	int16_t level;
-	//short appearance; //age2
-	int16_t type;
-	int16_t status;
-	double endtime;
-	double starttime;
-	//short help; //age2
-	//string name;
-	amf3object ToObject()
-	{
-		amf3object obj;
-		obj["startTime"] = starttime;
-		obj["endTime"] = endtime;//(endtime > 0)?(endtime-1000):(0);// HACK: Attempt to correct "lag" issues.
-		obj["level"] = level;
-		obj["status"] = status;
-		obj["typeId"] = type;
-		obj["positionId"] = id;
-		obj["name"] = GetBuildingName(type);
-		return obj;
-	};
-}; // 21 bytes
 
 class City
 {
@@ -147,7 +49,7 @@ public:
 	~City(void);
 
 	bool SetBuilding(int16_t type, int16_t level, int16_t position, int16_t status = 0, double starttime = 0, double endtime = 0);
-	void SetResources(int64_t food, int64_t wood, int64_t stone, int64_t iron, int64_t gold);
+	void SetResources(int64_t gold, int64_t food, int64_t wood, int64_t stone, int64_t iron);
 	void SetForts(int32_t traps, int32_t abatis, int32_t towers, int32_t logs, int32_t trebs);
 	int32_t GetForts(int32_t type);
 
@@ -215,7 +117,7 @@ public:
 	~PlayerCity(void);
 
 	Client * m_client;
-	int64_t m_castleid;
+	uint32_t m_castleid;
 	int64_t m_accountid;
 	string m_logurl;
 	int32_t m_population;
@@ -230,21 +132,7 @@ public:
 	double m_lastcomfort;
 	double m_lastlevy;
 
-	struct stTroops
-	{
-		int64_t worker;
-		int64_t warrior;
-		int64_t scout;
-		int64_t pike;
-		int64_t sword;
-		int64_t archer;
-		int64_t cavalry;
-		int64_t cataphract;
-		int64_t transporter;
-		int64_t ballista;
-		int64_t ram;
-		int64_t catapult;
-	} m_troops, m_injuredtroops; // size 44 bytes
+	stTroops m_troops, m_injuredtroops; // size 44 bytes
 
 	stResources m_production;
 	stResources m_workpopulation;
@@ -280,6 +168,7 @@ public:
 	void SetTroops(int8_t type, int64_t amount);
 	void SetForts(int32_t type, int32_t count);
 	int64_t GetTroops(int8_t type);
+	bool HasTroops(stTroops & troops);
 	void SetMaxResources(int64_t food, int64_t wood, int64_t stone, int64_t iron);
 
 	void ParseBuildings(char * str);
@@ -302,28 +191,19 @@ public:
 	void TroopUpdate();
 	void FortUpdate();
 
+	int16_t GetReliefMultiplier();
+
+
 	amf3array ResourceProduceData();
 
-	struct stTroopTrain
-	{
-		int16_t troopid;
-		int32_t count;
-		int32_t queueid;
-		double starttime;
-		double endtime;
-		double costtime;
-	};
-	struct stTroopQueue
-	{
-		int8_t status;
-		int16_t positionid;
-		int32_t nextqueueid;
-		list<stTroopTrain> queue;
-	};
+
 
 	vector<stTroopQueue> m_troopqueue;
 
+	vector<stArmyMovement*> armymovement;
+
 	int16_t HeroCount();
+	Hero * GetHero(uint64_t id);
 	stTroopQueue * GetBarracksQueue(int16_t position);
 	int8_t AddToBarracksQueue(int8_t position, int16_t troopid, int32_t count, bool isshare, bool isidle);
 

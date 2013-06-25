@@ -30,9 +30,8 @@ namespace server {
 
 
 extern int DEF_MAPSIZE;
-extern uint64_t unixtime();
 
-#ifndef __WIN32__
+#ifndef WIN32
 #define _ASSERT(x)
 #endif
 
@@ -76,6 +75,7 @@ Client::Client(server * core)
 	m_parentid = 0;
 	m_icon = 0;
 	m_changedface = false;
+	changeface = 0;//1 = xmas, 2 = halloween maybe?, more?
 
 	memset(m_ipaddress, 0, 16);
 

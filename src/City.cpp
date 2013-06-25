@@ -84,7 +84,7 @@ bool City::SetBuilding(int16_t type, int16_t level, int16_t position, int16_t st
 		{
 			if ((level > 0) && (((PlayerCity*)this)->GetBarracksQueue(position) == 0))
 			{
-				PlayerCity::stTroopQueue queue;
+				stTroopQueue queue;
 				queue.nextqueueid = 0;
 				queue.positionid = position;
 				queue.status = 0;
@@ -92,7 +92,7 @@ bool City::SetBuilding(int16_t type, int16_t level, int16_t position, int16_t st
 			}
 			else if ((level == 0) && (((PlayerCity*)this)->GetBarracksQueue(position) != 0))
 			{
-				vector<PlayerCity::stTroopQueue>::iterator iter;
+				vector<stTroopQueue>::iterator iter;
 				if (((PlayerCity*)this)->m_troopqueue.size() > 0)
 				{
 					for (iter = ((PlayerCity*)this)->m_troopqueue.begin(); iter != ((PlayerCity*)this)->m_troopqueue.end(); ++iter)
@@ -286,61 +286,61 @@ void NpcCity::Initialize(bool resources, bool troops)
 	switch (m_level)
 	{
 	case 1:
-		SetResources(100000, 20000, 20000, 20000, 55000);
+		SetResources(55000, 100000, 20000, 20000, 20000);
 		SetTroops(50, 40, 30, 10, 8);
 		SetForts(1000, 0, 0, 0, 0);
 		SetupBuildings();
 		break;
 	case 2:
-		SetResources(200000, 30000, 30000, 30000, 65000);
+		SetResources(65000, 200000, 30000, 30000, 30000);
 		SetTroops(50, 45, 40, 30, 25);
 		SetForts(1850, 550, 0, 0, 0);
 		SetupBuildings();
 		break;
 	case 3:
-		SetResources(900000, 75000, 75000, 75000, 75000);
+		SetResources(75000, 900000, 75000, 75000, 75000);
 		SetTroops(200, 160, 65, 40, 60);
 		SetForts(2000, 1000, 650, 0, 0);
 		SetupBuildings();
 		break;
 	case 4:
-		SetResources(1600000, 120000, 120000, 120000, 300000);
+		SetResources(300000, 1600000, 120000, 120000, 120000);
 		SetTroops(400, 400, 100, 100, 150);
 		SetForts(4500, 1875, 550, 0, 0);
 		SetupBuildings();
 		break;
 	case 5:
-		SetResources(3000000, 180000, 180000, 180000, 450000);
+		SetResources(450000, 3000000, 180000, 180000, 180000);
 		SetTroops(750, 1000, 350, 250, 200);
 		SetForts(3750, 1875, 1250, 750, 0);
 		SetupBuildings();
 		break;
 	case 6:
-		SetResources(4000000, 200000, 200000, 200000, 600000);
+		SetResources(600000, 4000000, 200000, 200000, 200000);
 		SetTroops(4000, 1750, 550, 500, 450);
 		SetForts(4250, 1500, 1500, 950, 400);
 		SetupBuildings();
 		break;
 	case 7:
-		SetResources(4500000, 500000, 500000, 500000, 800000);
+		SetResources(800000, 4500000, 500000, 500000, 500000);
 		SetTroops(12000, 3000, 750, 800, 750);
 		SetForts(5600, 2800, 1850, 1100, 700);
 		SetupBuildings();
 		break;
 	case 8:
-		SetResources(8000000, 800000, 800000, 800000, 1000000);
+		SetResources(1000000, 8000000, 800000, 800000, 800000);
 		SetTroops(15000, 6750, 4000, 3000, 2000);
 		SetForts(7200, 3600, 2400, 1440, 900);
 		SetupBuildings();
 		break;
 	case 9:
-		SetResources(14000000, 550000, 550000, 550000, 1200000);
+		SetResources(1200000, 14000000, 550000, 550000, 550000);
 		SetTroops(60000, 18000, 2000, 6750, 2500);
 		SetForts(9000, 4500, 3000, 1800, 1125);
 		SetupBuildings();
 		break;
 	case 10:
-		SetResources(19000000, 600000, 600000, 600000, 1500000);
+		SetResources(1500000, 19000000, 600000, 600000, 600000);
 		SetTroops(400000, 0, 0, 0, 0);
 		SetForts(11000, 5500, 3666, 2200, 1375);
 		SetupBuildings();
@@ -594,55 +594,6 @@ amf3object PlayerCity::InjuredTroops()
 	return obj;
 }
 
-
-char * GetBuildingName(int id)
-{
-	switch (id)
-	{
-	case 1:
-		return "Cottage";
-	case 2:
-		return "Barracks";
-	case 3:
-		return "Warehouse";
-	case 4:
-		return "Sawmill";
-	case 5:
-		return "Stonemine";
-	case 6:
-		return "Ironmine";
-	case 7:
-		return "Farm";
-	case 20:
-		return "Stable";
-	case 21:
-		return "Inn";
-	case 22:
-		return "Forge";
-	case 23:
-		return "Marketplace";
-	case 24:
-		return "Relief Station";
-	case 25:
-		return "Academy";
-	case 26:
-		return "Workshop";
-	case 27:
-		return "Feasting Hall";
-	case 28:
-		return "Embassy";
-	case 29:
-		return "Rally Spot";
-	case 30:
-		return "Beacon Tower";
-	case 31:
-		return "Town Hall";
-	case 32:
-		return "Walls";
-	}
-	return "Failed";
-}
-
 amf3array PlayerCity::Buildings()
 {
 	amf3array array = amf3array();
@@ -748,9 +699,9 @@ void PlayerCity::ParseBuildings(char * str)
 
 			if (status == 1)
 			{
-				server::stBuildingAction * ba = new server::stBuildingAction;
+				stBuildingAction * ba = new stBuildingAction;
 
-				server::stTimedEvent te;
+				stTimedEvent te;
 				ba->city = this;
 				ba->client = this->m_client;
 				ba->positionid = position;
@@ -1090,15 +1041,18 @@ void PlayerCity::ParseFortifications(char * str)
 
 int16_t PlayerCity::GetBuildingLevel(int16_t id)
 {
+	int level = 0;
 	for (int i = 0; i < 35; ++i)
 		if (m_innerbuildings[i].type > 0)
 			if (m_innerbuildings[i].type == id)
-				return m_innerbuildings[i].level;
+				if (level < m_innerbuildings[i].level)
+					level = m_innerbuildings[i].level;
 	for (int i = 0; i <= 40; ++i)
 		if (m_outerbuildings[i].type > 0)
 			if (m_outerbuildings[i].type == id)
-				return m_outerbuildings[i].level;
-	return 0;
+				if (level < m_outerbuildings[i].level)
+					level = m_outerbuildings[i].level;
+	return level;
 }
 int16_t PlayerCity::GetBuildingCount(int16_t id)
 {
@@ -1220,6 +1174,8 @@ void PlayerCity::CalculateResources()
 
 void PlayerCity::CastleUpdate()
 {
+	if (!m_client->m_connected)
+		return;
 	amf3object obj = amf3object();
 	obj["cmd"] = "server.CastleUpdate";
 	obj["data"] = amf3object();
@@ -1232,6 +1188,8 @@ void PlayerCity::CastleUpdate()
 
 void PlayerCity::ResourceUpdate()
 {
+	if (!m_client->m_connected)
+		return;
 	amf3object obj = amf3object();
 	obj["cmd"] = "server.ResourceUpdate";
 	obj["data"] = amf3object();
@@ -1244,6 +1202,8 @@ void PlayerCity::ResourceUpdate()
 
 void PlayerCity::HeroUpdate(Hero * hero, int16_t updatetype)
 {
+	if (!m_client->m_connected)
+		return;
 	amf3object obj = amf3object();
 	obj["cmd"] = "server.HeroUpdate";
 	obj["data"] = amf3object();
@@ -1269,8 +1229,34 @@ void PlayerCity::HeroUpdate(Hero * hero, int16_t updatetype)
 	m_client->m_main->SendObject(m_client->socket, obj);
 }
 
+int16_t PlayerCity::GetReliefMultiplier()
+{
+	switch (GetBuildingLevel(B_RELIEFSTATION))
+	{
+		default:
+			return 1;
+		case 1:
+		case 2:
+		case 3:
+			return 2;
+		case 4:
+			return 3;
+		case 5:
+		case 6:
+		case 7:
+			return 4;
+		case 8:
+		case 9:
+			return 5;
+		case 10:
+			return 6;
+	}
+}
+
 void PlayerCity::TroopUpdate()
 {
+	if (!m_client->m_connected)
+		return;
 	amf3object obj = amf3object();
 	obj["cmd"] = "server.TroopUpdate";
 	obj["data"] = amf3object();
@@ -1283,6 +1269,8 @@ void PlayerCity::TroopUpdate()
 
 void PlayerCity::FortUpdate()
 {
+	if (!m_client->m_connected)
+		return;
 	amf3object obj = amf3object();
 	obj["cmd"] = "server.FortificationsUpdate";
 	obj["data"] = amf3object();
@@ -1421,7 +1409,7 @@ int8_t PlayerCity::AddToBarracksQueue(int8_t position, int16_t troopid, int32_t 
 	{
 		return -1;
 	}
-	server::stBuildingConfig * conf = &m_client->m_main->m_troopconfig[troopid];
+	stBuildingConfig * conf = &m_client->m_main->m_troopconfig[troopid];
 	stTroopTrain troops;
 	troops.troopid = troopid;
 	troops.count = count;
@@ -1473,7 +1461,7 @@ int16_t PlayerCity::HeroCount()
 	return cnt;
 }
 
-PlayerCity::stTroopQueue * PlayerCity::GetBarracksQueue(int16_t position)
+stTroopQueue * PlayerCity::GetBarracksQueue(int16_t position)
 {
 	for (int i = 0; i < m_troopqueue.size(); ++i)
 	{
@@ -1489,7 +1477,7 @@ bool PlayerCity::CheckBuildingPrereqs(int16_t type, int16_t level)
 {
 	if (type <= 0 || type > 35)
 		return false;
-	server::stBuildingConfig * cfg = &m_client->m_main->m_buildingconfig[type][level];
+	stBuildingConfig * cfg = &m_client->m_main->m_buildingconfig[type][level];
 
 
 	for (int a = 0; a < 3; ++a)
@@ -1518,6 +1506,45 @@ bool PlayerCity::CheckBuildingPrereqs(int16_t type, int16_t level)
 	}
 	return true;
 }
+
+bool PlayerCity::HasTroops(stTroops & troops)
+{
+	if (m_troops.worker - troops.worker < 0)
+		return false;
+	if (m_troops.warrior - troops.warrior < 0)
+		return false;
+	if (m_troops.scout - troops.scout < 0)
+		return false;
+	if (m_troops.pike - troops.pike < 0)
+		return false;
+	if (m_troops.sword - troops.sword < 0)
+		return false;
+	if (m_troops.archer - troops.archer < 0)
+		return false;
+	if (m_troops.cavalry - troops.cavalry < 0)
+		return false;
+	if (m_troops.cataphract - troops.cataphract < 0)
+		return false;
+	if (m_troops.transporter - troops.transporter < 0)
+		return false;
+	if (m_troops.ballista - troops.ballista < 0)
+		return false;
+	if (m_troops.ram - troops.ram < 0)
+		return false;
+	if (m_troops.catapult - troops.catapult < 0)
+		return false;
+	return true;
+}
+Hero * PlayerCity::GetHero(uint64_t id)
+{
+	for (int i = 0; i < 10; ++i)
+	{
+		if (m_heroes[i]->m_id == id)
+			return m_heroes[i];
+	}
+	return 0;
+}
+
 
 }
 }
