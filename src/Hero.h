@@ -22,6 +22,7 @@
 #pragma once
 
 #include <string>
+#include "funcs.h"
 #include "amf3.h"
 
 namespace spitfire {
@@ -38,7 +39,7 @@ public:
 	amf3object ToObject();
 
 	double m_experience;
-	int64_t m_id;
+	uint64_t m_id;
 	int32_t m_itemamount; //?
 	int32_t m_itemid; //?
 	int16_t m_level;
@@ -60,6 +61,7 @@ public:
 	int16_t m_stratagemadded;
 	int16_t m_stratagembuffadded;
 	double m_upgradeexp;
+	stArmyMovement * movement;
 
 	inline int16_t GetManagement()
 	{

@@ -23,7 +23,6 @@
 #include <boost/bind.hpp>
 #include <signal.h>
 #include "connection.hpp"
-#include <sys/timeb.h>
 
 #define DEF_NOMAPDATA
 
@@ -31,13 +30,8 @@ namespace spitfire {
 namespace server {
 
 
-#ifdef WIN32
-	unsigned __stdcall  SaveData(void *ch);
-	unsigned __stdcall  TimerThread(void *ch);
-#else
-	void * SaveData(void *ch);
-	void * TimerThread(void *ch);
-#endif
+std::size_t SaveData(void);
+std::size_t TimerThread(void);
 
 int DEF_MAPSIZE = 0;
 
@@ -49,17 +43,7 @@ extern size_t ci_find(const string& str1, const string& str2);
 extern bool ci_equal(char ch1, char ch2);
 extern server * gserver;
 
-uint64_t unixtime()
-{
-#ifdef WIN32
-	struct __timeb64 tstruct;
-	_ftime64_s( &tstruct );
-#else
-	struct timeb tstruct;
-	ftime( &tstruct );
-#endif
-	return tstruct.millitm + tstruct.time*1000;
-}
+
 
 server::server()
   : io_service_(),
@@ -147,6 +131,25 @@ void server::run()
 		delete msql2;
 		throw exception("Unable to connect to mysql server!");
 	}
+
+	//set up prepared statements
+	accountcreation = mysql_stmt_init(gserver->msql->mySQL);
+	//string query = "INSERT INTO `accounts` (`parentid`, `username`, `lastlogin`, `creation`, `ipaddress`, `status`, `reason`, `sex`, `flag`, `faceurl`) VALUES (%d, '%s', "XI64", "XI64", '%s', %d, '%s', %d, '%s', '%s');";
+	string query = "INSERT INTO `accounts` (`parentid`, `username`, `lastlogin`, `creation`, `ipaddress`, `status`, `reason`, `sex`, `flag`, `faceurl`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+	mysql_stmt_prepare(accountcreation, query.c_str(), query.length());
+	memset(bindaccountcreation, 0, sizeof(bindaccountcreation));
+	bindaccountcreation[0].buffer_type = enum_field_types::MYSQL_TYPE_INT24;
+	bindaccountcreation[1].buffer_type = MYSQL_TYPE_STRING;
+	bindaccountcreation[2].buffer_type = MYSQL_TYPE_LONGLONG;
+	bindaccountcreation[3].buffer_type = MYSQL_TYPE_LONGLONG;
+	bindaccountcreation[4].buffer_type = MYSQL_TYPE_STRING;
+	bindaccountcreation[5].buffer_type = MYSQL_TYPE_INT24;
+	bindaccountcreation[6].buffer_type = MYSQL_TYPE_STRING;
+	bindaccountcreation[7].buffer_type = MYSQL_TYPE_INT24;
+	bindaccountcreation[8].buffer_type = MYSQL_TYPE_STRING;
+	bindaccountcreation[9].buffer_type = MYSQL_TYPE_STRING;
+	accountcreation->bind = bindaccountcreation;
+
 
 	printf("Start up procedure\n");
 
@@ -457,30 +460,30 @@ void server::run()
 	msql->Reset();
 #else
 	//this fakes map data
-	for (int x = 0; x < (DEF_MAPSIZE*DEF_MAPSIZE); x += 1/*(DEF_MAPSIZE*DEF_MAPSIZE)/10*/)
-	{
-		m_map->m_tile[x].m_id = x;
-		m_map->m_tile[x].m_ownerid = -1;
-		//make every tile an npc
-		m_map->m_tile[x].m_type = NPC;
-		//m_map->m_tile[x].m_type = rand()%11;
-		m_map->m_tile[x].m_level = (rand()%10)+1;
-
-		if (m_map->m_tile[x].m_type == NPC)
-		{
-			NpcCity * city = (NpcCity *)gserver->AddNpcCity(m_map->m_tile[x].m_id);
-			city->Initialize(true, true);
-			city->m_level = m_map->m_tile[x].m_level;
-			city->m_ownerid = m_map->m_tile[x].m_ownerid;
-			gserver->m_map->m_tile[m_map->m_tile[x].m_id].m_zoneid = gserver->m_map->GetStateFromID(m_map->m_tile[x].m_id);
-		}
-
-
-		if ((x+1)%((DEF_MAPSIZE*DEF_MAPSIZE)/100) == 0)
-		{
-			Log("%d%%", int((double(double(x+1)/(DEF_MAPSIZE*DEF_MAPSIZE)))*double(100)));
-		}
-	}
+// 	for (int x = 0; x < (DEF_MAPSIZE*DEF_MAPSIZE); x += 1/*(DEF_MAPSIZE*DEF_MAPSIZE)/10*/)
+// 	{
+// 		m_map->m_tile[x].m_id = x;
+// 		m_map->m_tile[x].m_ownerid = -1;
+// 		//make every tile an npc
+// 		m_map->m_tile[x].m_type = NPC;
+// 		//m_map->m_tile[x].m_type = rand()%11;
+// 		m_map->m_tile[x].m_level = (rand()%10)+1;
+// 
+// 		if (m_map->m_tile[x].m_type == NPC)
+// 		{
+// 			NpcCity * city = (NpcCity *)gserver->AddNpcCity(m_map->m_tile[x].m_id);
+// 			city->Initialize(true, true);
+// 			city->m_level = m_map->m_tile[x].m_level;
+// 			city->m_ownerid = m_map->m_tile[x].m_ownerid;
+// 			gserver->m_map->m_tile[m_map->m_tile[x].m_id].m_zoneid = gserver->m_map->GetStateFromID(m_map->m_tile[x].m_id);
+// 		}
+// 
+// 
+// 		if ((x+1)%((DEF_MAPSIZE*DEF_MAPSIZE)/100) == 0)
+// 		{
+// 			Log("%d%%", int((double(double(x+1)/(DEF_MAPSIZE*DEF_MAPSIZE)))*double(100)));
+// 		}
+// 	}
 
 #endif
 
@@ -510,7 +513,7 @@ void server::run()
 		client = NewClient();
 		client->m_accountexists = true;
 		client->m_accountid = msql->GetInt(i, "accountid");
-		client->m_parentid = msql->GetInt(i, "parentid");
+		client->masteraccountid = msql->GetInt(i, "parentid");
 		client->m_playername = msql->GetString(i, "username");
 		client->m_password = msql->GetString(i, "password");
 		client->m_email = msql->GetString(i, "email");
@@ -530,6 +533,8 @@ void server::run()
 		client->ParseResearch(msql->GetString(i, "research"));
 		client->ParseItems(msql->GetString(i, "items"));
 		client->ParseMisc(msql->GetString(i, "misc"));
+
+		client->CheckBeginner(false);
 
 		if (accountcount > 101)
 			if ((count)%((accountcount)/100) == 0)
@@ -667,9 +672,9 @@ void server::run()
 
 						if (client->m_research[a].castleid != 0)
 						{
-							server::stResearchAction * ra = new server::stResearchAction;
+							stResearchAction * ra = new stResearchAction;
 
-							server::stTimedEvent te;
+							stTimedEvent te;
 							ra->city = pcity;
 							ra->client = pcity->m_client;
 							ra->researchid = a;
@@ -753,16 +758,16 @@ void server::run()
 
 	unsigned uAddr;
 
-#ifndef WIN32
-	pthread_t hTimerThread;
-	if (pthread_create(&hTimerThread, NULL, TimerThread, 0))
-	{
-		SFERROR("pthread_create");
-	}
-#else
-	HANDLE hTimerThread;
-	hTimerThread = (HANDLE)_beginthreadex(0, 0, TimerThread, 0, 0, &uAddr);
-#endif
+// #ifndef WIN32
+// 	pthread_t hTimerThread;
+// 	if (pthread_create(&hTimerThread, NULL, TimerThread, 0))
+// 	{
+// 		SFERROR("pthread_create");
+// 	}
+// #else
+// 	HANDLE hTimerThread;
+// 	hTimerThread = (HANDLE)_beginthreadex(0, 0, TimerThread, 0, 0, &uAddr);
+// #endif
 
 	// Finally listen on the socket and start accepting connections
 	acceptor_.listen();
@@ -770,18 +775,38 @@ void server::run()
 		boost::bind(&server::handle_accept, this,
 		asio::placeholders::error));
 
-	io_service_.run();
-
-#ifndef WIN32
-	pthread_t hSaveThread;
-	if (pthread_create(&hSaveThread, NULL, SaveData, 0))
+	// Create a pool of threads to run all of the io_services.
+	std::vector<boost::shared_ptr<boost::thread> > threads;
+	for (std::size_t i = 0; i < /*thread_pool_size_*/1; ++i)
 	{
-		SFERROR("pthread_create");
+		boost::shared_ptr<boost::thread> thread(new boost::thread(
+			boost::bind(&asio::io_service::run, &io_service_)));
+		threads.push_back(thread);
 	}
-#else
-	HANDLE hSaveThread;
-	hSaveThread = (HANDLE)_beginthreadex(0, 0, SaveData, 0, 0, &uAddr);
-#endif
+
+	// Wait for all threads in the pool to exit.
+	for (std::size_t i = 0; i < threads.size(); ++i)
+		threads[i]->join();
+	//io_service_.run();
+
+// #ifndef WIN32
+// 	pthread_t hSaveThread;
+// 	if (pthread_create(&hSaveThread, NULL, SaveData, 0))
+// 	{
+// 		SFERROR("pthread_create");
+// 	}
+// #else
+// 	HANDLE hSaveThread;
+// 	hSaveThread = (HANDLE)_beginthreadex(0, 0, SaveData, 0, 0, &uAddr);
+// #endif
+
+
+	boost::shared_ptr<boost::thread> savethread(new boost::thread(SaveData));
+	savethread->join();
+
+	mysql_stmt_close(accountcreation);
+
+
 	lua_close(L);
 }
 
@@ -853,22 +878,21 @@ void server::handle_stop()
   // will exit.
   acceptor_.close();
   connection_manager_.stop_all();
+  gserver->serverstatus = 0;
 }
 
 
 // Timers
 
 extern bool TimerThreadRunning;
-#ifdef WIN32
-unsigned __stdcall  TimerThread(void *ch)
+std::size_t TimerThread(void)
 {
-	_tzset();
-#else
-void * TimerThread(void *ch)
-{
+#ifndef WIN32
 	struct timespec req={0};
 	req.tv_sec = 0;
 	req.tv_nsec = 1000000L;//1ms
+#else
+	_tzset();
 #endif
 
 	TimerThreadRunning = true;
@@ -884,7 +908,7 @@ void * TimerThread(void *ch)
 	uint64_t t100msectimer;
 	uint64_t ltime;
 
-	list<server::stTimedEvent>::iterator iter;
+	list<stTimedEvent>::iterator iter;
 
 	t1htimer = t30mintimer = t6mintimer = t5mintimer = t3mintimer = t1mintimer = t5sectimer = t1sectimer = t100msectimer = unixtime();
 
@@ -906,7 +930,6 @@ void * TimerThread(void *ch)
 			}
 			if (t100msectimer < ltime)
 			{
-				MULTILOCK(M_TIMEDLIST, M_CLIENTLIST);
 				for (int i = 0; i < gserver->maxplayersloaded; ++i)
 				{
 					if (gserver->m_clients[i])
@@ -915,10 +938,10 @@ void * TimerThread(void *ch)
 						for (int j = 0; j < client->m_city.size(); ++j)
 						{
 							PlayerCity * city = client->m_city[j];
-							vector<PlayerCity::stTroopQueue>::iterator tqiter;
+							vector<stTroopQueue>::iterator tqiter;
 							for (tqiter = client->m_city[j]->m_troopqueue.begin(); tqiter != client->m_city[j]->m_troopqueue.end(); )
 							{
-								list<PlayerCity::stTroopTrain>::iterator iter;
+								list<stTroopTrain>::iterator iter;
 								iter = tqiter->queue.begin();
 								if (iter != tqiter->queue.end() && iter->endtime <= ltime)
 								{
@@ -945,22 +968,17 @@ void * TimerThread(void *ch)
 						}
 					}
 				}
-				UNLOCK(M_TIMEDLIST);
-				UNLOCK(M_CLIENTLIST);
 
-				LOCK(M_TIMEDLIST);
 				if (gserver->armylist.size() > 0)
 					for (iter = gserver->armylist.begin(); iter != gserver->armylist.end(); )
 					{
 
 					}
-					UNLOCK(M_TIMEDLIST);
 
-					LOCK(M_TIMEDLIST);
 					if (gserver->buildinglist.size() > 0)
 						for (iter = gserver->buildinglist.begin(); iter != gserver->buildinglist.end(); )
 						{
-							server::stBuildingAction * ba = (server::stBuildingAction *)iter->data;
+							stBuildingAction * ba = (stBuildingAction *)iter->data;
 							Client * client = ba->client;
 							PlayerCity * city = ba->city;
 							stBuilding * bldg = ba->city->GetBuilding(ba->positionid);
@@ -1064,13 +1082,11 @@ void * TimerThread(void *ch)
 							}
 							++iter;
 						}
-						UNLOCK(M_TIMEDLIST);
 
-						LOCK(M_TIMEDLIST);
 						if (gserver->researchlist.size() > 0)
 							for (iter = gserver->researchlist.begin(); iter != gserver->researchlist.end(); )
 							{
-								server::stResearchAction * ra = (server::stResearchAction *)iter->data;
+								stResearchAction * ra = (stResearchAction *)iter->data;
 								Client * client = ra->client;
 								PlayerCity * city = ra->city;
 								if (ra->researchid != 0)
@@ -1124,22 +1140,18 @@ void * TimerThread(void *ch)
 								}
 								++iter;
 							}
-							UNLOCK(M_TIMEDLIST);
 							t100msectimer += 100;
 			}
 			if (t5sectimer < ltime)
 			{
-				LOCK(M_RANKEDLIST);
 				gserver->SortPlayers();
 				gserver->SortHeroes();
 				gserver->SortCastles();
 				gserver->m_alliances->SortAlliances();
-				UNLOCK(M_RANKEDLIST);
 				for (int i = 0; i < gserver->maxplayersloaded; ++i)
 				{
 					if (gserver->m_clients[i])
 					{
-						LOCK(M_CLIENTLIST);
 						Client * client = gserver->m_clients[i];
 						for (int j = 0; j < client->m_buffs.size(); ++j)
 						{
@@ -1155,7 +1167,6 @@ void * TimerThread(void *ch)
 								}
 							}
 						}
-						UNLOCK(M_CLIENTLIST);
 					}
 				}
 
@@ -1176,15 +1187,13 @@ void * TimerThread(void *ch)
 					}
 				}
 
-				LOCK(M_TIMEDLIST);
 				gserver->CheckRankSearchTimeouts(ltime);
-				UNLOCK(M_TIMEDLIST);
 
 				t1mintimer += 60000;
 			}
 			if (t3mintimer < ltime)
 			{
-				hSaveThread = (HANDLE)_beginthreadex(0, 0, SaveData, 0, 0, &uAddr);
+				//hSaveThread = (HANDLE)_beginthreadex(0, 0, SaveData, 0, 0, &uAddr);
 				t3mintimer += 180000;
 			}
 			if (t5mintimer < ltime)
@@ -1201,15 +1210,25 @@ void * TimerThread(void *ch)
 			}
 			if (t6mintimer < ltime)
 			{
-				LOCK(M_CASTLELIST);
-				for (int i = 0; i < gserver->m_city.size(); ++i)
+				try
 				{
-					if (gserver->m_city.at(i)->m_type == NPC)
-						((NpcCity*)gserver->m_city.at(i))->CalculateStats(true, true);
-					if (gserver->m_city.at(i)->m_type == CASTLE)
-						((PlayerCity*)gserver->m_city.at(i))->RecacluateCityStats();
+					for (int i = 0; i < gserver->m_city.size(); ++i)
+					{
+						if (gserver->m_city.at(i)->m_type == NPC)
+						{
+							((NpcCity*)gserver->m_city.at(i))->CalculateStats(true, true);
+						}
+						else if (gserver->m_city.at(i)->m_type == CASTLE)
+						{
+							((PlayerCity*)gserver->m_city.at(i))->RecalculateCityStats();
+						}
+					}
 				}
-				UNLOCK(M_CASTLELIST);
+				catch (...)
+				{
+					Log("exception: %s : %d", __FILE__, __LINE__);
+					//error?
+				}
 				t6mintimer += 360000;
 			}
 			if (t30mintimer < ltime)
@@ -1239,19 +1258,11 @@ void * TimerThread(void *ch)
 	{
 		TimerThreadRunning = false;
 	}
-#ifdef WIN32
-	_endthread();
-#endif
 	return 0;
 }
 
-#ifdef WIN32
-unsigned __stdcall  SaveData(void *ch)
+std::size_t SaveData(void)
 {
-#else
-void * SaveData(void *ch)
-{
-#endif
 	Log("Saving data.");
 
 // #ifdef __WIN32__
@@ -1382,7 +1393,7 @@ void * SaveData(void *ch)
 	 WHERE `id` IN (0,1,2);
 	 **/
 
-#ifndef DEF_NOMAPDATA
+#ifdef DEF_NOMAPDATA
 
 	try
 	{
@@ -1404,24 +1415,24 @@ void * SaveData(void *ch)
 		for (int i = 0; i < DEF_MAPSIZE*DEF_MAPSIZE; ++i)
 		{
 			stringstream ss;
-			ss << " WHEN " << i << " THEN " << gserver->m_map->m_tile[i].m_type;
-			typestr = ss.str();
+			ss << " WHEN " << i << " THEN " << (int32_t)gserver->m_map->m_tile[i].m_type;
+			typestr += ss.str();
 			ss.str("");
-			ss << " WHEN " << i << " THEN " << gserver->m_map->m_tile[i].m_level;
-			levelstr = ss.str();
+			ss << " WHEN " << i << " THEN " << (int32_t)gserver->m_map->m_tile[i].m_level;
+			levelstr += ss.str();
 			ss.str("");
-			ss << " WHEN " << i << " THEN " << gserver->m_map->m_tile[i].m_ownerid;
-			ownerstr = ss.str();
+			ss << " WHEN " << i << " THEN " << (int32_t)gserver->m_map->m_tile[i].m_ownerid;
+			ownerstr += ss.str();
 			ss.str("");
 			ss << i;
-			instr = ss.str();
+			instr += ss.str();
 			ss.str("");
 	
-			if (i%200 == 199)
+			if (i%200 == 10)//199)
 			{
 				fullstr = updatestr + typehstr + typestr + endstr + levelhstr + levelstr + endstr + ownerhstr + ownerstr + endstr2 + wherestr + instr;
 				fullstr += ");";
-				gserver->msql->Update((char*)fullstr.c_str());
+				gserver->msql->Query((char*)fullstr.c_str());
 				gserver->msql->Reset();
 				instr = typestr = levelstr = ownerstr = fullstr = "";
 			}
@@ -1522,13 +1533,13 @@ void * SaveData(void *ch)
 			if (alliancecount > 0)
 			{
 				//update
-				gserver->msql->Update("UPDATE `alliances` SET `leader`=%d,`name`='%s',`founder`='%s',`note`='%s',`intro`='%s',`motd`='%s',`members`='%s',`enemies`='%s',`allies`='%s',`neutrals`='%s' WHERE `id`=%d LIMIT 1;",
+				gserver->msql->Query("UPDATE `alliances` SET `leader`=%d,`name`='%s',`founder`='%s',`note`='%s',`intro`='%s',`motd`='%s',`members`='%s',`enemies`='%s',`allies`='%s',`neutrals`='%s' WHERE `id`=%d LIMIT 1;",
 							alliance->m_ownerid, alliance->m_name.c_str(), alliance->m_founder.c_str(), note.c_str(), intro.c_str(), motd.c_str(), members.c_str(), enemies.c_str(), allies.c_str(), neutrals.c_str(), alliance->m_allianceid);
 			}
 			else
 			{
 				//insert
-				gserver->msql->Insert("INSERT INTO `alliances` (`id`,`leader`,`name`,`founder`,`note`,`intro`,`motd`,`members`,`enemies`,`allies`,`neutrals`) VALUES (%d,%d,'%s','%s','%s','%s','%s','%s','%s','%s','%s');",
+				gserver->msql->Query("INSERT INTO `alliances` (`id`,`leader`,`name`,`founder`,`note`,`intro`,`motd`,`members`,`enemies`,`allies`,`neutrals`) VALUES (%d,%d,'%s','%s','%s','%s','%s','%s','%s','%s','%s');",
 							 alliance->m_allianceid, alliance->m_ownerid,alliance->m_name.c_str(), alliance->m_founder.c_str(), alliance->m_note.c_str(), alliance->m_intro.c_str(), alliance->m_motd.c_str(), members.c_str(), enemies.c_str(), allies.c_str(), neutrals.c_str());
 			}
 		}
@@ -1565,7 +1576,7 @@ void * SaveData(void *ch)
 
 			memset(temp1, 0, 1000);
 
-			Client::stResearch * rsrch;
+			stResearch * rsrch;
 			for (int j = 0; j < 25; ++j)
 			{
 				if (j != 0)
@@ -1607,7 +1618,7 @@ void * SaveData(void *ch)
 				ss << tempclient->m_icon << "," << tempclient->m_allianceapply << "," << tempclient->m_changedface;
 				misc = ss.str();
 			}
-			gserver->msql->Update("UPDATE `accounts` SET `username`='%s',`lastlogin`="DBL",`ipaddress`='%s',`status`=%d,`buffs`='%s',`flag`='%s',`faceurl`='%s',`research`='%s',`items`='%s',`allianceid`=%d,`alliancerank`=%d,`misc`='%s',`cents`=%d,`prestige`="DBL",`honor`="DBL" WHERE `accountid`=%d;",
+			gserver->msql->Query("UPDATE `accounts` SET `username`='%s',`lastlogin`="DBL",`ipaddress`='%s',`status`=%d,`buffs`='%s',`flag`='%s',`faceurl`='%s',`research`='%s',`items`='%s',`allianceid`=%d,`alliancerank`=%d,`misc`='%s',`cents`=%d,`prestige`="DBL",`honor`="DBL" WHERE `accountid`=%d;",
 				(char*)tempclient->m_playername.c_str(), tempclient->m_lastlogin, tempclient->m_ipaddress, tempclient->m_status, (char*)buffs.c_str(),
 				(char*)tempclient->m_flag.c_str(), (char*)tempclient->m_faceurl.c_str(), (char*)research.c_str(), (char*)items.c_str(), tempclient->m_allianceid, tempclient->m_alliancerank, (char*)misc.c_str(), tempclient->m_cents, tempclient->m_prestige, tempclient->m_honor, tempclient->m_accountid);
 			gserver->msql->Reset();
@@ -1667,7 +1678,7 @@ void * SaveData(void *ch)
 					if (citycount > 0)
 					{
 						//update
-						gserver->msql->Update("UPDATE `cities` SET `misc`='%s',`status`=%d,`allowalliance`=%d,`logurl`='%s',`fieldid`=%d,`transingtrades`='%s',`troop`='%s',`name`='%s',`buildings`='%s',`fortification`='%s',`trades`='%s', \
+						gserver->msql->Query("UPDATE `cities` SET `misc`='%s',`status`=%d,`allowalliance`=%d,`logurl`='%s',`fieldid`=%d,`transingtrades`='%s',`troop`='%s',`name`='%s',`buildings`='%s',`fortification`='%s',`trades`='%s', \
 									 `gooutforbattle`=%d,`hasenemy`=%d,`gold`="DBL",`food`="DBL",`wood`="DBL",`iron`="DBL",`stone`="DBL",`creation`="DBL" WHERE `id`="XI64" LIMIT 1;",
 									 (char*)misc2.c_str(), (int)tempcity->m_status, (int)tempcity->m_allowalliance, (char*)tempcity->m_logurl.c_str(), tempcity->m_tileid, (char*)transingtrades.c_str(),
 									 (char*)troop.c_str(), (char*)tempcity->m_cityname.c_str(), (char*)buildings.c_str(), (char*)fortification.c_str(), (char*)trades.c_str(), (int)tempcity->m_gooutforbattle, (int)tempcity->m_hasenemy,
@@ -1676,7 +1687,7 @@ void * SaveData(void *ch)
 					else
 					{
 						//insert
-						gserver->msql->Insert("INSERT INTO `cities` (`accountid`,`misc`,`status`,`allowalliance`,`logurl`,`fieldid`,`transingtrades`,`troop`,`name`,`buildings`,`fortification`,`trades`,`gooutforbattle`,`hasenemy`,`gold`,`food`,`wood`,`iron`,`stone`,`creation`) \
+						gserver->msql->Query("INSERT INTO `cities` (`accountid`,`misc`,`status`,`allowalliance`,`logurl`,`fieldid`,`transingtrades`,`troop`,`name`,`buildings`,`fortification`,`trades`,`gooutforbattle`,`hasenemy`,`gold`,`food`,`wood`,`iron`,`stone`,`creation`) \
 									 VALUES (%d, '%s',%d,%d,'%s',%d,'%s','%s','%s','%s','%s','%s',%d,%d,"DBL","DBL","DBL","DBL","DBL","DBL");",
 									 tempcity->m_accountid, (char*)misc2.c_str(), (int)tempcity->m_status, (int)tempcity->m_allowalliance, (char*)tempcity->m_logurl.c_str(), tempcity->m_tileid, (char*)transingtrades.c_str(), (char*)tempcity->m_cityname.c_str(), (char*)buildings.c_str(), (char*)fortification.c_str(), (char*)trades.c_str(), (int)tempcity->m_gooutforbattle,
 									 (int)tempcity->m_hasenemy, tempcity->m_resources.gold, tempcity->m_resources.food, tempcity->m_resources.wood, tempcity->m_resources.iron, tempcity->m_resources.stone, tempcity->m_creation);
@@ -1699,7 +1710,7 @@ void * SaveData(void *ch)
 								if (herocount > 0)
 								{
 									//update
-									gserver->msql->Update("UPDATE `heroes` SET `ownerid`="XI64",`castleid`="XI64",`name`='%s',`status`=%d,`itemid`=%d,`itemamount`=%d,`basestratagem`=%d,`stratagem`=%d,`stratagemadded`=%d,`stratagembuffadded`=%d,\
+									gserver->msql->Query("UPDATE `heroes` SET `ownerid`="XI64",`castleid`="XI64",`name`='%s',`status`=%d,`itemid`=%d,`itemamount`=%d,`basestratagem`=%d,`stratagem`=%d,`stratagemadded`=%d,`stratagembuffadded`=%d,\
 												 `basepower`=%d,`power`=%d,`poweradded`=%d,`powerbuffadded`=%d,`basemanagement`=%d,`management`=%d,`managementadded`=%d,`managementbuffadded`=%d,\
 												 `logurl`='%s',`remainpoint`=%d,`level`=%d,`upgradeexp`="DBL",`experience`="DBL",`loyalty`=%d WHERE `id`="XI64" LIMIT 1;",
 												 tempcity->m_accountid, tempcity->m_castleid, temphero->m_name.c_str(), (int)temphero->m_status, temphero->m_itemid, temphero->m_itemamount, (int)temphero->m_basestratagem, (int)temphero->m_stratagem, (int)temphero->m_stratagemadded, (int)temphero->m_stratagembuffadded,
@@ -1709,7 +1720,7 @@ void * SaveData(void *ch)
 								else
 								{
 									//insert
-									gserver->msql->Insert("INSERT INTO `heroes` (`id`,`ownerid`,`castleid`,`name`,`status`,`itemid`,`itemamount`,`basestratagem`,`stratagem`,`stratagemadded`,`stratagembuffadded`,\
+									gserver->msql->Query("INSERT INTO `heroes` (`id`,`ownerid`,`castleid`,`name`,`status`,`itemid`,`itemamount`,`basestratagem`,`stratagem`,`stratagemadded`,`stratagembuffadded`,\
 												 `basepower`,`power`,`poweradded`,`powerbuffadded`,`basemanagement`,`management`,`managementadded`,`managementbuffadded`,\
 												 `logurl`,`remainpoint`,`level`,`upgradeexp`,`experience`,`loyalty`) VALUES ("XI64","XI64","XI64",'%s',%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,'%s',%d,%d,"DBL","DBL",%d);",
 												 temphero->m_id, tempcity->m_accountid, tempcity->m_castleid, temphero->m_name.c_str(), (int)temphero->m_status, temphero->m_itemid, temphero->m_itemamount, (int)temphero->m_basestratagem, (int)temphero->m_stratagem, (int)temphero->m_stratagemadded, (int)temphero->m_stratagembuffadded,
@@ -1769,28 +1780,25 @@ void * SaveData(void *ch)
 	{
 		for (iter = gserver->m_deletedhero.begin(); iter != gserver->m_deletedhero.end(); ++iter)
 		{
-			gserver->msql->Delete("DELETE FROM `heroes` WHERE `id`=%d LIMIT 1", *iter);
+			gserver->msql->Query("DELETE FROM `heroes` WHERE `id`=%d LIMIT 1", *iter);
 		}
 	}
 	if (gserver->m_deletedcity.size() > 0)
 	{
 		for (iter = gserver->m_deletedcity.begin(); iter != gserver->m_deletedcity.end(); ++iter)
 		{
-			gserver->msql->Delete("DELETE FROM `cities` WHERE `id`=%d LIMIT 1", *iter);
+			gserver->msql->Query("DELETE FROM `cities` WHERE `id`=%d LIMIT 1", *iter);
 		}
 	}
 	UNLOCK(M_DELETELIST);
 
 
-#ifdef WIN32
-	_endthread();
-#endif
 	return 0;
 }
 
 // Server code
 
-server::stItem * server::GetItem(string name)
+stItemConfig * server::GetItem(string name)
 {
 	for (int i = 0; i < DEF_MAXITEMS; ++i)
 	{
@@ -2394,7 +2402,7 @@ void server::SortCastles()
 		iter->rank = num++;
 	}
 }
-int32_t  server::GetClientID(int32_t accountid)
+int32_t  server::GetClientIndex(int32_t accountid)
 {
 	for (int i = 0; i < maxplayersloaded; ++i)
 	{
@@ -2404,7 +2412,19 @@ int32_t  server::GetClientID(int32_t accountid)
 	}
 	return -1;
 }
-Client * server::GetClient(int accountid)
+Client * server::GetClientByCastle(int32_t castleid)
+{
+	for (int i = 0; i < maxplayersloaded; ++i)
+	{
+		if (m_clients[i])
+		{
+			if (m_clients[i]->GetCity(castleid) != 0)
+				return m_clients[i];
+		}
+	}
+	return 0;
+}
+Client * server::GetClient(int32_t accountid)
 {
 	for (int i = 0; i < maxplayersloaded; ++i)
 	{
@@ -2419,7 +2439,7 @@ Client * server::GetClientByParent(int accountid)
 	for (int i = 0; i < maxplayersloaded; ++i)
 	{
 		if (m_clients[i])
-			if (m_clients[i]->m_parentid == accountid)
+			if (m_clients[i]->masteraccountid == accountid)
 				return m_clients[i];
 	}
 	return 0;
@@ -2546,17 +2566,17 @@ bool server::ParseChat(Client * client, char * str)
 			}
 			else if (!strcmp(command, "save"))
 			{
-#ifndef WIN32
-				pthread_t hSaveThread;
-				if (pthread_create(&hSaveThread, NULL, SaveData, 0))
-				{
-					SFERROR("pthread_create");
-				}
-#else
-				uint32_t uAddr;
-				HANDLE hSaveThread;
-				hSaveThread = (HANDLE)_beginthreadex(0, 0, SaveData, 0, 0, &uAddr);
-#endif
+// #ifndef WIN32
+// 				pthread_t hSaveThread;
+// 				if (pthread_create(&hSaveThread, NULL, SaveData, 0))
+// 				{
+// 					SFERROR("pthread_create");
+// 				}
+// #else
+// 				uint32_t uAddr;
+// 				HANDLE hSaveThread;
+// 				hSaveThread = (HANDLE)_beginthreadex(0, 0, SaveData, 0, 0, &uAddr);
+// #endif
 				data["msg"] = "Data being saved.";
 			}
 			else if (!strcmp(command, "cents"))

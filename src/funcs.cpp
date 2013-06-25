@@ -24,6 +24,20 @@
 namespace spitfire {
 namespace server {
 
+#include <sys/timeb.h>
+
+uint64_t unixtime()
+{
+#ifdef WIN32
+	struct __timeb64 tstruct;
+	_ftime64_s( &tstruct );
+#else
+	struct timeb tstruct;
+	ftime( &tstruct );
+#endif
+	return tstruct.millitm + tstruct.time*1000;
+}
+
 void Log( char * str, ...)
 {
 	va_list argptr;
@@ -123,6 +137,7 @@ int htoi(char hex)
 	case 102://f
 		return 15;
 	}
+	return 0;
 }
 char itoh(int num)
 {
@@ -161,6 +176,7 @@ char itoh(int num)
 	case 15://f
 		return 102;
 	}
+	return 0;
 }
 //m_tile[y*mapsize+x].m_id = y*mapsize+x;
 
@@ -205,6 +221,114 @@ typedef struct tagBOX
 	int y1;
 	int y2;
 } BOX;
+
+
+
+
+char * GetBuildingName(int id)
+{
+	switch (id)
+	{
+	case 1:
+		return "Cottage";
+	case 2:
+		return "Barracks";
+	case 3:
+		return "Warehouse";
+	case 4:
+		return "Sawmill";
+	case 5:
+		return "Stonemine";
+	case 6:
+		return "Ironmine";
+	case 7:
+		return "Farm";
+	case 20:
+		return "Stable";
+	case 21:
+		return "Inn";
+	case 22:
+		return "Forge";
+	case 23:
+		return "Marketplace";
+	case 24:
+		return "Relief Station";
+	case 25:
+		return "Academy";
+	case 26:
+		return "Workshop";
+	case 27:
+		return "Feasting Hall";
+	case 28:
+		return "Embassy";
+	case 29:
+		return "Rally Spot";
+	case 30:
+		return "Beacon Tower";
+	case 31:
+		return "Town Hall";
+	case 32:
+		return "Walls";
+	}
+	return "Failed";
+}
+#ifdef WIN32
+int vasprintf(char **str, const char *fmt, va_list ap)
+{
+	int ret = -1;
+	va_list ap2;
+	char *string, *newstr;
+	size_t len;
+
+	VA_COPY(ap2, ap);
+	if ((string = (char*)malloc(INIT_SZ)) == NULL)
+		goto fail;
+
+	ret = vsnprintf(string, INIT_SZ, fmt, ap2);
+	if (ret >= 0 && ret < INIT_SZ) { /* succeeded with initial alloc */
+		*str = string;
+	} else if (ret == INT_MAX || ret < 0) { /* Bad length */
+		goto fail;
+	} else {        /* bigger than initial, realloc allowing for nul */
+		len = (size_t)ret + 1;
+		if ((newstr = (char*)realloc(string, len)) == NULL) {
+			free(string);
+			goto fail;
+		} else {
+			va_end(ap2);
+			VA_COPY(ap2, ap);
+			ret = vsnprintf(newstr, len, fmt, ap2);
+			if (ret >= 0 && (size_t)ret < len) {
+				*str = newstr;
+			} else { /* failed with realloc'ed string, give up */
+				free(newstr);
+				goto fail;
+			}
+		}
+	}
+	va_end(ap2);
+	return (ret);
+
+fail:
+	*str = NULL;
+	errno = ENOMEM;
+	va_end(ap2);
+	return (-1);
+}
+
+int asprintf(char **str, const char *fmt, ...)
+{
+	va_list ap;
+	int ret;
+
+	*str = NULL;
+	va_start(ap, fmt);
+	ret = vasprintf(str, fmt, ap);
+	va_end(ap);
+
+	return ret;
+}
+#endif
 
 }
 }

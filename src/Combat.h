@@ -1,5 +1,5 @@
 //
-// Map.h
+// Combat.h
 // Project Spitfire
 //
 // Copyright (c) 2013 Daizee (rensiadz at gmail dot com)
@@ -21,52 +21,26 @@
 
 #pragma once
 
+#include <string>
 #include "funcs.h"
-#include "Tile.h"
 #include "amf3.h"
+#include "Hero.h"
+#include "City.h"
+#include "Client.h"
+//#include "defines.h"
 
 namespace spitfire {
 namespace server {
 
-class City;
-class server;
+using namespace std;
 
-class Map
+class Combat
 {
 public:
-	Map(server * sptr);
-	~Map(void);
+	Combat();
+	~Combat(void);
 
-	server * m_main;
-	string * states;
-
-	void CalculateOpenTiles();
-	int GetStateFromXY(int x, int y);
-	int GetStateFromID(int id);
-	int GetRandomOpenTile(int zone);
-	amf3object GetTileRangeObject(int32_t clientid, int x1, int x2, int y1, int y2);
-	amf3object GetMapCastle(int32_t fieldid, int32_t clientid);
-	Tile * GetTileFromID(int id);
-
-	bool AddCity(int id, City * city);
-
-	Tile * m_tile;
-	int32_t m_totalflats[DEF_STATES];
-	int32_t m_openflats[DEF_STATES];
-	int32_t m_npcs[DEF_STATES];
-	int32_t m_cities[DEF_STATES];
-	int32_t m_occupiedtiles[DEF_STATES];
-	int32_t m_occupiabletiles[DEF_STATES];
-	struct mapstats
-	{
-		int players;
-		int numbercities;
-		int playerrate;
-	} m_stats[DEF_STATES];
-
-	vector<int32_t> m_openflatlist[DEF_STATES];
 };
-
 
 }
 }

@@ -1,5 +1,5 @@
 //
-// connection_manager.cpp
+// Combat.cpp
 // Project Spitfire
 //
 // Copyright (c) 2013 Daizee (rensiadz at gmail dot com)
@@ -19,38 +19,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Spitfire.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "connection_manager.hpp"
-#include <algorithm>
-#include <boost/bind.hpp>
+#include "Combat.h"
+#include "server.hpp"
 
 namespace spitfire {
 namespace server {
 
-void connection_manager::start(connection_ptr c)
+extern uint64_t unixtime();
+
+
+Combat::Combat()
 {
-  connections_.insert(c);
-  c->start();
 }
 
-void connection_manager::stop(connection_ptr c)
+
+Combat::~Combat(void)
 {
-	try
-	{
-		connections_.erase(c);
-		c->stop();
-	}
-	catch (std::exception& e)
-	{
-		std::cerr << "exception: " << e.what() << "\n";
-	}
 }
 
-void connection_manager::stop_all()
-{
-  std::for_each(connections_.begin(), connections_.end(),
-      boost::bind(&connection::stop, _1));
-  connections_.clear();
-}
 
-} // namespace server
-} // namespace http
+
+}
+}
