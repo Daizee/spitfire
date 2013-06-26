@@ -12,7 +12,7 @@ maxplayersloaded = Maximum amount of active accounts allowed (accounts are
 		Adjust as needed.
 		
 maxplayersonline = Maximum amount of players connected to the server at once
-		(typically set to the same or more than `maxplayersloaded`)
+		(typically set to the same or less than `maxplayersloaded`)
 		
 mysqlhost/user/pass = mysql credentials
 --]]
@@ -22,9 +22,9 @@ server =
 	port = 443,
 	maxplayersloaded = 2000,
 	maxplayersonline = 2000,
-	mysqlhost = "192.168.112.129",
-	mysqluser = "evo",
-	mysqlpass = "evo",
+	mysqlhost = "127.0.0.1",
+	mysqluser = "root",
+	mysqlpass = "",
 	--[[ other config options to be added later such as multipliers to affect in game actions
 	like building, training, research, resource gain, travel speeds, etc ]]
 }

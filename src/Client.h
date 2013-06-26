@@ -27,37 +27,19 @@
 #include "amf3.h"
 #include "Alliance.h"
 #include "connection.hpp"
+#include "City.h"
 
 namespace spitfire {
 namespace server {
 
+
 using namespace std;
 
 class server;
-class City;
-class PlayerCity;
 
 
 
-#define T_AGRICULTURE 1
-#define T_LUMBERING 2
-#define T_MASONRY 3
-#define T_MINING 4
-#define T_METALCASTING 5
-#define T_INFORMATICS 7
-#define T_MILITARYSCIENCE 8
-#define T_MILITARYTRADITION 9
-#define T_IRONWORKING 10
-#define T_LOGISTICS 11
-#define T_COMPASS 12
-#define T_HORSEBACKRIDING 13
-#define T_ARCHERY 14
-#define T_STOCKPILE 15
-#define T_MEDICINE 16
-#define T_CONSTRUCTION 17
-#define T_ENGINEERING 18
-#define T_MACHINERY 19
-#define T_PRIVATEERING 20
+
 
 class Client
 {
@@ -90,8 +72,8 @@ public:
 	int16_t GetItemCount(int16_t type);
 
 
-	int m_accountid;
-	int m_parentid;
+	int64_t m_accountid;
+	int64_t masteraccountid;
 
 	bool m_accountexists;
 
@@ -132,6 +114,7 @@ public:
 	int m_tempvar;
 	string m_allianceapply;
 	bool m_changedface;
+	uint16_t changeface;//new castle designs
 
 	int8_t m_icon;
 
@@ -142,30 +125,11 @@ public:
 
 	double m_lag;
 
-	struct stBuff
-	{
-		string id;
-		string desc;
-		double endtime;
-	};
+
 
 	vector<stBuff> m_buffs;
-
-	struct stItem
-	{
-		string id;
-		int16_t count;
-		int16_t mincount;
-		int16_t maxcount;
-	} m_items[DEF_MAXITEMS];
-
-	struct stResearch
-	{
-		int16_t level;
-		int32_t castleid;
-		double endtime;
-		double starttime;
-	} m_research[25];
+	stItem m_items[DEF_MAXITEMS];
+	stResearch m_research[25];
 
 	stBuff * GetBuff(string type)
 	{
@@ -177,22 +141,53 @@ public:
 		return 0;
 	}
 
+	vector<stArmyMovement*> armymovement;
+
 	void CalculateResources();
 	void PlayerUpdate();
 	void ItemUpdate(char * itemname);
 	void BuffUpdate(string name, string desc, int64_t endtime, int8_t type = 0);
 	void HeroUpdate(int heroid, int castleid);
 	void MailUpdate();
+	void UpdateSelfArmy();
 	bool HasAlliance()
 	{
 		if (m_allianceid > 0)
 			return true;
 		return false;
-	};
+	}
 	Alliance * GetAlliance();
 
 	PlayerCity * GetCity(int32_t castleid);
 	PlayerCity * GetFocusCity();
+	bool Beginner() { return m_beginner; }
+	void Beginner(bool set, bool update = true) {
+		if (m_beginner != set)
+		{
+			m_beginner = set;
+			if (update)
+				PlayerUpdate();
+		}
+	}
+	__forceinline void CheckBeginner(bool update = true)
+	{
+		if (Beginner())
+		{
+			if ((unixtime() - m_creation) > 1000*60*60*24*7)
+			{
+				Beginner(false, update);
+				return;
+			}
+			for (int i = 0; i < this->m_city.size(); ++i)
+			{
+				if (m_city[i]->GetBuildingLevel(B_TOWNHALL) >= 5)
+				{
+					Beginner(false, update);
+					return;
+				}
+			}
+		}
+	}
 };
 
 

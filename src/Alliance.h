@@ -51,18 +51,6 @@ class Client;
 // red = 3
 // white = 4
 // 
-struct stAlliance
-{
-	int32_t id;
-	union
-	{
-		int32_t members;
-		double honor;
-		double prestige;
-	};
-	uint32_t rank;
-	Alliance * ref;
-};
 
 class AllianceCore
 {
